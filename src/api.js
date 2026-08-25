@@ -75,10 +75,26 @@ export async function updateMachineHours(machineId, hours) {
   if (error) throw error;
 }
 
+export async function deleteMachine(id) {
+  const { error } = await supabase.from("machines").delete().eq("id", id);
+  if (error) throw error;
+}
+
 /* ----------------------- Maintenance records --------------------- */
 
 export async function addRecord(record) {
   const { data, error } = await supabase.from("maintenance_records").insert(record).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateRecord(id, payload) {
+  const { data, error } = await supabase
+    .from("maintenance_records")
+    .update(payload)
+    .eq("id", id)
+    .select()
+    .single();
   if (error) throw error;
   return data;
 }
