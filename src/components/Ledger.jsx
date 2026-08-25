@@ -1,0 +1,572 @@
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import * as api from "../api";
+import {
+  Hanko,
+  Overlay,
+  Field,
+  EditableSelect,
+  ContentPicker,
+  MasterListEditor,
+  MasterContentEditor,
+  TONES,
+  fmtDate,
+  daysUntil,
+  latestRecord,
+  getStatus,
+  formatContentItem,
+} from "./ui";
+
+const todayStr = () => new Date().toISOString().slice(0, 10);
+function addDays(dateStr, days) {
+  const d = new Date(dateStr + "T00:00:00");
+  d.setDate(d.getDate() + Number(days || 0));
+  return d.toISOString().slice(0, 10);
+}
+function unique(arr) {
+  return Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja"));
+}
+
+/* ------------------------- Add Machine Modal ------------------------ */
+function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOptions, onAddKishu, onAddMaker }) {
+  const [form, setForm] = useState({
+    kanriNo: "",
+    kishu: "",
+    maker: "",
+    katashiki: "",
+    basho: "",
+    cycle: 90,
+    hours: 0,
+  });
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const submit = async () => {
+    const no = form.kanriNo.trim();
+    if (!no) return setError("管理番号を入力してください。");
+    if (existingNos.includes(no)) return setError(`管理番号「${no}」は既に登録されています。`);
+    if (!form.kishu) return setError("機種名を選択してください。");
+    if (!form.maker) return setError("メーカーを選択してください。");
+    setError("");
+    setSaving(true);
+    try {
+      await onSave({
+        kanri_no: no,
+        kishu: form.kishu,
+        maker: form.maker,
+        katashiki: form.katashiki.trim(),
+        basho: form.basho.trim(),
+        cycle_days: Number(form.cycle) || 90,
+        hours: Number(form.hours) || 0,
+      });
+    } catch (err) {
+      setError(err.message || "登録に失敗しました。");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <div className="sheet-head">
+        <h2>新規機械登録</h2>
+        <button className="icon-btn" onClick={onClose} aria-label="閉じる">×</button>
+      </div>
+      <div className="sheet-body">
+        <Field label="管理番号" required>
+          <input className="input" autoFocus placeholder="例：K-003" value={form.kanriNo} onChange={set("kanriNo")} />
+        </Field>
+        <div className="grid-2">
+          <Field label="機種名" required>
+            <EditableSelect value={form.kishu} onChange={(v) => setForm((f) => ({ ...f, kishu: v }))} options={kishuOptions} onAddOption={onAddKishu} placeholder="機種を選択" />
+          </Field>
+          <Field label="メーカー" required>
+            <EditableSelect value={form.maker} onChange={(v) => setForm((f) => ({ ...f, maker: v }))} options={makerOptions} onAddOption={onAddMaker} placeholder="メーカーを選択" />
+          </Field>
+        </div>
+        <div className="grid-2">
+          <Field label="型式">
+            <input className="input" placeholder="例：PC128USLC-11" value={form.katashiki} onChange={set("katashiki")} />
+          </Field>
+          <Field label="配置場所">
+            <input className="input" placeholder="例：第一現場" value={form.basho} onChange={set("basho")} />
+          </Field>
+        </div>
+        <div className="grid-2">
+          <Field label="点検周期（日）">
+            <input type="number" min="1" className="input" value={form.cycle} onChange={set("cycle")} />
+          </Field>
+          <Field label="現在の稼働時間（h）">
+            <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
+          </Field>
+        </div>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+      <div className="sheet-foot">
+        <button className="btn btn-ghost" onClick={onClose}>取消</button>
+        <button className="btn btn-primary" onClick={submit} disabled={saving}>
+          {saving ? "登録中…" : "台帳に登録する"}
+        </button>
+      </div>
+    </Overlay>
+  );
+}
+
+/* ------------------------- Add Record Modal ------------------------- */
+function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContentOption, workerOptions, onAddWorker }) {
+  const [form, setForm] = useState({
+    date: todayStr(),
+    worker: "",
+    hours: machine.hours || 0,
+    nextDate: addDays(todayStr(), machine.cycle_days),
+    legalDate: addDays(todayStr(), 365),
+  });
+  const [contentItems, setContentItems] = useState([]);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const setDateAndDefaults = (e) => {
+    const date = e.target.value;
+    setForm((f) => ({ ...f, date, nextDate: addDays(date, machine.cycle_days), legalDate: addDays(date, 365) }));
+  };
+
+  const submit = async () => {
+    if (!form.date) return setError("整備日を入力してください。");
+    if (!form.worker) return setError("実施者を選択してください。");
+    if (contentItems.length === 0) return setError("整備内容を1つ以上選択してください。");
+    setError("");
+    setSaving(true);
+    try {
+      await onSave({
+        machine_id: machine.id,
+        date: form.date,
+        worker: form.worker,
+        hours: Number(form.hours) || 0,
+        content: contentItems,
+        next_date: form.nextDate || null,
+        legal_date: form.legalDate || null,
+      });
+    } catch (err) {
+      setError(err.message || "登録に失敗しました。");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Overlay onClose={onClose} wide>
+      <div className="sheet-head">
+        <div>
+          <p className="tag-mini">{machine.kanri_no}</p>
+          <h2>整備記録の追加</h2>
+        </div>
+        <button className="icon-btn" onClick={onClose} aria-label="閉じる">×</button>
+      </div>
+      <div className="sheet-body">
+        <div className="grid-2">
+          <Field label="整備日" required>
+            <input type="date" className="input" value={form.date} onChange={setDateAndDefaults} />
+          </Field>
+          <Field label="実施者" required>
+            <EditableSelect value={form.worker} onChange={(v) => setForm((f) => ({ ...f, worker: v }))} options={workerOptions} onAddOption={onAddWorker} placeholder="実施者を選択" />
+          </Field>
+        </div>
+        <div className="grid-2">
+          <Field label="稼働時間（h）">
+            <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
+          </Field>
+          <Field label="次回点検予定日">
+            <input type="date" className="input" value={form.nextDate} onChange={set("nextDate")} />
+          </Field>
+        </div>
+        <Field label="次回特定自主検査予定日">
+          <input type="date" className="input" value={form.legalDate} onChange={set("legalDate")} />
+        </Field>
+        <Field label="整備内容" required>
+          <ContentPicker options={contentOptions} onAddOption={onAddContentOption} selected={contentItems} onChange={setContentItems} />
+        </Field>
+        {error && <p className="error-text">{error}</p>}
+      </div>
+      <div className="sheet-foot">
+        <button className="btn btn-ghost" onClick={onClose}>取消</button>
+        <button className="btn btn-primary" onClick={submit} disabled={saving}>
+          {saving ? "登録中…" : "記録を追加する"}
+        </button>
+      </div>
+    </Overlay>
+  );
+}
+
+/* ------------------------------ Detail ------------------------------ */
+function MachineDetail({ machine, onBack, onAddRecord }) {
+  const status = getStatus(machine);
+  const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
+  const latest = latestRecord(machine);
+  const records = machine.maintenance_records || [];
+  const sortedRecords = [...records].sort((a, b) => (a.date < b.date ? 1 : -1));
+
+  return (
+    <div className="detail">
+      <button className="back-link" onClick={onBack}>← 一覧に戻る</button>
+
+      <div className="detail-card">
+        <div className="detail-card-top">
+          <div>
+            <p className="tag-mini">管理番号</p>
+            <h2 className="detail-no">{machine.kanri_no}</h2>
+          </div>
+          <Hanko tone={toneKey} size={64} />
+        </div>
+
+        <div className="detail-grid">
+          <div><p className="dt">機種</p><p className="dd">{machine.kishu || "―"}</p></div>
+          <div><p className="dt">メーカー</p><p className="dd">{machine.maker || "―"}</p></div>
+          <div><p className="dt">型式</p><p className="dd">{machine.katashiki || "―"}</p></div>
+          <div><p className="dt">配置場所</p><p className="dd">{machine.basho || "―"}</p></div>
+          <div><p className="dt">点検周期</p><p className="dd">{machine.cycle_days}日ごと</p></div>
+          <div><p className="dt">現在の状態</p><p className="dd" style={{ color: status.ink }}>{status.label}</p></div>
+          <div><p className="dt">最終整備日</p><p className="dd">{latest ? fmtDate(latest.date) : "未整備"}</p></div>
+          <div>
+            <p className="dt">次回特定自主検査予定</p>
+            <p className="dd" style={{ color: latest && latest.legal_date && daysUntil(latest.legal_date) < 0 ? TONES.due.ink : undefined }}>
+              {latest && latest.legal_date ? fmtDate(latest.legal_date) : "―"}
+            </p>
+          </div>
+        </div>
+      </div>
+
+      <div className="history-head">
+        <h3>整備履歴</h3>
+        <button className="btn btn-primary btn-sm" onClick={onAddRecord}>＋ 整備記録を追加</button>
+      </div>
+
+      {sortedRecords.length === 0 ? (
+        <div className="empty-panel">
+          <p>まだ整備記録がありません。</p>
+          <p className="empty-sub">最初の記録を追加すると、ここに履歴が並びます。</p>
+        </div>
+      ) : (
+        <div className="record-list">
+          {sortedRecords.map((r) => {
+            const overdue = r.next_date && daysUntil(r.next_date) < 0;
+            const legalOverdue = r.legal_date && daysUntil(r.legal_date) < 0;
+            return (
+              <div className="record-row" key={r.id}>
+                <div className="record-date">{fmtDate(r.date)}</div>
+                <div className="record-main">
+                  <div className="chip-row chip-row-static">
+                    {(r.content || []).map((c, i) => (
+                      <span className="chip chip-static" key={i}>{formatContentItem(c)}</span>
+                    ))}
+                  </div>
+                  <p className="record-meta">
+                    実施者：{r.worker}　稼働時間：{r.hours}h
+                    {r.next_date && (
+                      <>　次回点検：{fmtDate(r.next_date)}{overdue && <span className="overdue-flag">期限超過</span>}</>
+                    )}
+                  </p>
+                  {r.legal_date && (
+                    <p className="record-meta">
+                      次回特定自主検査：{fmtDate(r.legal_date)}
+                      {legalOverdue && <span className="overdue-flag">期限超過</span>}
+                    </p>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ------------------------------- List -------------------------------- */
+function MachineRow({ machine, onOpen }) {
+  const status = getStatus(machine);
+  const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
+  const latest = latestRecord(machine);
+  return (
+    <button className="row" onClick={() => onOpen(machine.id)}>
+      <span className="row-tab">{machine.kanri_no}</span>
+      <span className="row-main">
+        <span className="row-title">{machine.kishu || "（機種未登録）"}</span>
+        <span className="row-sub">{[machine.maker, machine.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>
+        <span className="row-last">最終整備：{latest ? fmtDate(latest.date) : "未整備"}</span>
+      </span>
+      <span className="row-place">{machine.basho || "―"}</span>
+      <span className="row-status">
+        <Hanko tone={toneKey} size={34} />
+        <span className="row-status-label" style={{ color: status.ink }}>{status.label}</span>
+      </span>
+    </button>
+  );
+}
+
+/* ------------------------------ Master page --------------------------- */
+function MasterPage({ onBack, kishu, maker, worker, content, onAddOpt, onRemoveOpt, onAddContent, onRemoveContent, onChangeContentUnit }) {
+  return (
+    <div className="detail">
+      <button className="back-link" onClick={onBack}>← 一覧に戻る</button>
+      <div>
+        <h2 className="master-title">マスタ編集</h2>
+        <p className="master-page-desc">機種・メーカー・実施者・整備内容の選択肢を管理します。削除しても、すでに登録済みの記録には影響しません。</p>
+      </div>
+      <div className="master-grid">
+        <MasterListEditor title="機種" items={kishu} onAdd={(v) => onAddOpt("kishu", v)} onRemove={onRemoveOpt} />
+        <MasterListEditor title="メーカー" items={maker} onAdd={(v) => onAddOpt("maker", v)} onRemove={onRemoveOpt} />
+        <MasterListEditor title="実施者" items={worker} onAdd={(v) => onAddOpt("worker", v)} onRemove={onRemoveOpt} />
+        <MasterContentEditor items={content} onAdd={onAddContent} onRemove={onRemoveContent} onChangeUnit={onChangeContentUnit} />
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------- Ledger app --------------------------------- */
+export default function Ledger({ profile, onSignOut }) {
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [machines, setMachines] = useState([]);
+  const [masterOptions, setMasterOptions] = useState([]); // [{id, type, value}]
+  const [masterContent, setMasterContent] = useState([]); // [{id, name, unit}]
+
+  const [selectedId, setSelectedId] = useState(null);
+  const [showAddMachine, setShowAddMachine] = useState(false);
+  const [showAddRecord, setShowAddRecord] = useState(false);
+  const [page, setPage] = useState("list");
+
+  const [filterKanriNo, setFilterKanriNo] = useState("");
+  const [filterKishu, setFilterKishu] = useState("");
+  const [filterMaker, setFilterMaker] = useState("");
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    setLoadError("");
+    try {
+      const [ms, opts, contents] = await Promise.all([
+        api.fetchMachines(),
+        api.fetchMasterOptions(),
+        api.fetchMasterContent(),
+      ]);
+      setMachines(ms);
+      setMasterOptions(opts);
+      setMasterContent(contents);
+    } catch (err) {
+      setLoadError(err.message || "データの読み込みに失敗しました。");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadAll();
+  }, [loadAll]);
+
+  const kishuOptions = useMemo(() => masterOptions.filter((o) => o.type === "kishu"), [masterOptions]);
+  const makerOptions = useMemo(() => masterOptions.filter((o) => o.type === "maker"), [masterOptions]);
+  const workerOptions = useMemo(() => masterOptions.filter((o) => o.type === "worker"), [masterOptions]);
+
+  const addOption = async (type, value) => {
+    const row = await api.addMasterOption(type, value);
+    setMasterOptions((prev) => [...prev, row]);
+  };
+  const removeOption = async (id) => {
+    await api.removeMasterOption(id);
+    setMasterOptions((prev) => prev.filter((o) => o.id !== id));
+  };
+  const addContentOption = async ({ name, unit }) => {
+    const row = await api.addMasterContent(name, unit);
+    setMasterContent((prev) => [...prev, row]);
+  };
+  const removeContentOption = async (id) => {
+    await api.removeMasterContent(id);
+    setMasterContent((prev) => prev.filter((o) => o.id !== id));
+  };
+  const changeContentUnit = async (id, unit) => {
+    await api.updateMasterContentUnit(id, unit);
+    setMasterContent((prev) => prev.map((o) => (o.id === id ? { ...o, unit } : o)));
+  };
+
+  const uniqueKanriNos = useMemo(() => machines.map((m) => m.kanri_no).sort((a, b) => a.localeCompare(b, "ja")), [machines]);
+  const uniqueKishus = useMemo(() => unique(machines.map((m) => m.kishu)), [machines]);
+  const uniqueMakers = useMemo(() => unique(machines.map((m) => m.maker)), [machines]);
+
+  const filtered = useMemo(
+    () =>
+      machines.filter(
+        (m) =>
+          (!filterKanriNo || m.kanri_no === filterKanriNo) &&
+          (!filterKishu || m.kishu === filterKishu) &&
+          (!filterMaker || m.maker === filterMaker)
+      ),
+    [machines, filterKanriNo, filterKishu, filterMaker]
+  );
+  const hasFilter = filterKanriNo || filterKishu || filterMaker;
+  const clearFilters = () => { setFilterKanriNo(""); setFilterKishu(""); setFilterMaker(""); };
+
+  const selected = machines.find((m) => m.id === selectedId) || null;
+  const existingNos = machines.map((m) => m.kanri_no);
+
+  const summary = useMemo(() => {
+    const c = { good: 0, soon: 0, due: 0, none: 0 };
+    machines.forEach((m) => {
+      const s = getStatus(m);
+      const key = Object.keys(TONES).find((k) => TONES[k] === s);
+      c[key]++;
+    });
+    return c;
+  }, [machines]);
+
+  const handleAddMachine = async (payload) => {
+    const row = await api.addMachine(payload);
+    setMachines((prev) => [{ ...row, maintenance_records: [] }, ...prev]);
+    setShowAddMachine(false);
+    setSelectedId(row.id);
+  };
+
+  const handleAddRecord = async (payload) => {
+    const row = await api.addRecord(payload);
+    setMachines((prev) =>
+      prev.map((m) =>
+        m.id === selected.id
+          ? {
+              ...m,
+              hours: Math.max(m.hours, row.hours),
+              maintenance_records: [...(m.maintenance_records || []), row],
+            }
+          : m
+      )
+    );
+    if (row.hours > selected.hours) await api.updateMachineHours(selected.id, row.hours);
+    setShowAddRecord(false);
+  };
+
+  if (loading) {
+    return (
+      <div className="ledger-loading">
+        <div className="seal-mark">検</div>
+        <p>読み込み中…</p>
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="ledger-loading">
+        <p className="error-text">{loadError}</p>
+        <button className="btn btn-primary btn-sm" onClick={loadAll}>再読み込み</button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <header className="header">
+        <div className="header-row">
+          <div className="seal-mark">検</div>
+          <div className="header-titles">
+            <h1>重機保全台帳</h1>
+            <p className="sub">管理番号で機械を登録し、整備の記録を積み重ねる台帳</p>
+          </div>
+          <div className="header-actions">
+            <span className="user-tag">{profile ? profile.display_name : ""} さん</span>
+            <button
+              className="master-nav-btn"
+              onClick={() => { setSelectedId(null); setPage(page === "master" ? "list" : "master"); }}
+            >
+              {page === "master" ? "← 一覧へ" : "⚙ マスタ編集"}
+            </button>
+            <button className="master-nav-btn logout-btn" onClick={onSignOut}>ログアウト</button>
+          </div>
+        </div>
+      </header>
+
+      {page === "master" ? (
+        <div className="content content-top">
+          <MasterPage
+            onBack={() => setPage("list")}
+            kishu={kishuOptions}
+            maker={makerOptions}
+            worker={workerOptions}
+            content={masterContent}
+            onAddOpt={addOption}
+            onRemoveOpt={removeOption}
+            onAddContent={addContentOption}
+            onRemoveContent={removeContentOption}
+            onChangeContentUnit={changeContentUnit}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="summary-strip">
+            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.good.ink }} />良好 {summary.good}</span>
+            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.soon.ink }} />点検間近 {summary.soon}</span>
+            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.due.ink }} />要点検 {summary.due}</span>
+            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.none.ink }} />未点検 {summary.none}</span>
+          </div>
+
+          <div className="toolbar">
+            <div className="toolbar-card">
+              <div className="filter-group">
+                <select className="input" value={filterKanriNo} onChange={(e) => setFilterKanriNo(e.target.value)}>
+                  <option value="">管理番号：すべて</option>
+                  {uniqueKanriNos.map((no) => <option key={no} value={no}>{no}</option>)}
+                </select>
+                <select className="input" value={filterKishu} onChange={(e) => setFilterKishu(e.target.value)}>
+                  <option value="">機種：すべて</option>
+                  {uniqueKishus.map((k) => <option key={k} value={k}>{k}</option>)}
+                </select>
+                <select className="input" value={filterMaker} onChange={(e) => setFilterMaker(e.target.value)}>
+                  <option value="">メーカー：すべて</option>
+                  {uniqueMakers.map((mk) => <option key={mk} value={mk}>{mk}</option>)}
+                </select>
+                {hasFilter && <button className="btn btn-ghost btn-sm" onClick={clearFilters}>絞り込み解除</button>}
+              </div>
+              <button className="btn btn-primary" onClick={() => setShowAddMachine(true)}>＋ 新規機械登録</button>
+            </div>
+          </div>
+
+          <div className="content">
+            {selected ? (
+              <MachineDetail machine={selected} onBack={() => setSelectedId(null)} onAddRecord={() => setShowAddRecord(true)} />
+            ) : filtered.length === 0 ? (
+              <div className="empty-state">
+                <div className="seal-mark" style={{ margin: "0 auto", color: "var(--indigo-800)", borderColor: "var(--washi-line)" }}>印</div>
+                <h3>{machines.length === 0 ? "台帳はまだ空です" : "該当する機械が見つかりません"}</h3>
+                <p>{machines.length === 0 ? "「＋ 新規機械登録」から管理番号を入力して、最初の一台を登録しましょう。" : "絞り込み条件を変えてお試しください。"}</p>
+              </div>
+            ) : (
+              <div className="list">
+                {filtered.map((m) => <MachineRow key={m.id} machine={m} onOpen={setSelectedId} />)}
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {showAddMachine && (
+        <AddMachineModal
+          existingNos={existingNos}
+          onClose={() => setShowAddMachine(false)}
+          onSave={handleAddMachine}
+          kishuOptions={kishuOptions.map((o) => o.value)}
+          makerOptions={makerOptions.map((o) => o.value)}
+          onAddKishu={(v) => addOption("kishu", v)}
+          onAddMaker={(v) => addOption("maker", v)}
+        />
+      )}
+      {showAddRecord && selected && (
+        <AddRecordModal
+          machine={selected}
+          onClose={() => setShowAddRecord(false)}
+          onSave={handleAddRecord}
+          contentOptions={masterContent}
+          onAddContentOption={addContentOption}
+          workerOptions={workerOptions.map((o) => o.value)}
+          onAddWorker={(v) => addOption("worker", v)}
+        />
+      )}
+    </>
+  );
+}
