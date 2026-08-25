@@ -84,6 +84,43 @@ export function Field({ label, required, children }) {
   );
 }
 
+export function PhotoUploadField({ label, previewUrl, onFileSelected, onRemove }) {
+  const inputRef = useRef(null);
+  return (
+    <div className="field">
+      <span className="field-label">{label}</span>
+      <div className="photo-upload-row">
+        {previewUrl ? (
+          <img src={previewUrl} alt="" className="photo-preview" />
+        ) : (
+          <div className="photo-preview photo-preview-empty">写真なし</div>
+        )}
+        <div className="photo-upload-actions">
+          <button type="button" className="btn btn-sm btn-ghost" onClick={() => inputRef.current && inputRef.current.click()}>
+            {previewUrl ? "写真を変更" : "写真を選択"}
+          </button>
+          {previewUrl && onRemove && (
+            <button type="button" className="btn btn-sm btn-ghost" onClick={onRemove}>
+              削除
+            </button>
+          )}
+          <input
+            ref={inputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const file = e.target.files && e.target.files[0];
+              if (file) onFileSelected(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function EditableSelect({ value, onChange, options, onAddOption, placeholder }) {
   const [adding, setAdding] = useState(false);
   const [newVal, setNewVal] = useState("");

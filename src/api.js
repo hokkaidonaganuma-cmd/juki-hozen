@@ -53,6 +53,25 @@ export async function fetchProfile(userId) {
   return data;
 }
 
+/* ---------------------------- Photos ---------------------------- */
+
+// folder は "machines" または "records" を想定
+export async function uploadPhoto(file, folder) {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) throw new Error("ログインが必要です。");
+  const ext = (file.name.split(".").pop() || "jpg").toLowerCase();
+  const path = `${user.id}/${folder}/${crypto.randomUUID()}.${ext}`;
+  const { error } = await supabase.storage.from("machine-photos").upload(path, file, {
+    upsert: false,
+    contentType: file.type || undefined,
+  });
+  if (error) throw error;
+  const { data } = supabase.storage.from("machine-photos").getPublicUrl(path);
+  return data.publicUrl;
+}
+
 /* -------------------------- Machines --------------------------- */
 
 export async function fetchMachines() {

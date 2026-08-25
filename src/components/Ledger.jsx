@@ -4,6 +4,7 @@ import {
   Hanko,
   Overlay,
   Field,
+  PhotoUploadField,
   EditableSelect,
   ContentPicker,
   MasterListEditor,
@@ -33,14 +34,22 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
     kishu: "",
     maker: "",
     katashiki: "",
+    chassisNo: "",
     basho: "",
     cycle: 90,
     hours: 0,
   });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handlePhotoSelected = (file) => {
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
 
   const submit = async () => {
     const no = form.kanriNo.trim();
@@ -51,14 +60,18 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
     setError("");
     setSaving(true);
     try {
+      let photo_url = null;
+      if (photoFile) photo_url = await api.uploadPhoto(photoFile, "machines");
       await onSave({
         kanri_no: no,
         kishu: form.kishu,
         maker: form.maker,
         katashiki: form.katashiki.trim(),
+        chassis_no: form.chassisNo.trim(),
         basho: form.basho.trim(),
         cycle_days: Number(form.cycle) || 90,
         hours: Number(form.hours) || 0,
+        photo_url,
       });
     } catch (err) {
       setError(err.message || "登録に失敗しました。");
@@ -88,10 +101,13 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
           <Field label="型式">
             <input className="input" placeholder="例：PC128USLC-11" value={form.katashiki} onChange={set("katashiki")} />
           </Field>
-          <Field label="配置場所">
-            <input className="input" placeholder="例：第一現場" value={form.basho} onChange={set("basho")} />
+          <Field label="車台番号">
+            <input className="input" placeholder="例：12345678" value={form.chassisNo} onChange={set("chassisNo")} />
           </Field>
         </div>
+        <Field label="配置場所">
+          <input className="input" placeholder="例：第一現場" value={form.basho} onChange={set("basho")} />
+        </Field>
         <div className="grid-2">
           <Field label="点検周期（日）">
             <input type="number" min="1" className="input" value={form.cycle} onChange={set("cycle")} />
@@ -100,6 +116,7 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
             <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
           </Field>
         </div>
+        <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={() => { setPhotoFile(null); setPhotoPreview(""); }} />
         {error && <p className="error-text">{error}</p>}
       </div>
       <div className="sheet-foot">
@@ -122,10 +139,17 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
     legalDate: addDays(todayStr(), 365),
   });
   const [contentItems, setContentItems] = useState([]);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState("");
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handlePhotoSelected = (file) => {
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+  };
 
   const setDateAndDefaults = (e) => {
     const date = e.target.value;
@@ -139,6 +163,8 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
     setError("");
     setSaving(true);
     try {
+      let photo_url = null;
+      if (photoFile) photo_url = await api.uploadPhoto(photoFile, "records");
       await onSave({
         machine_id: machine.id,
         date: form.date,
@@ -147,6 +173,7 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
         content: contentItems,
         next_date: form.nextDate || null,
         legal_date: form.legalDate || null,
+        photo_url,
       });
     } catch (err) {
       setError(err.message || "登録に失敗しました。");
@@ -186,6 +213,7 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
         <Field label="整備内容" required>
           <ContentPicker options={contentOptions} onAddOption={onAddContentOption} selected={contentItems} onChange={setContentItems} />
         </Field>
+        <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={() => { setPhotoFile(null); setPhotoPreview(""); }} />
         {error && <p className="error-text">{error}</p>}
       </div>
       <div className="sheet-foot">
@@ -208,10 +236,25 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
     legalDate: record.legal_date || "",
   });
   const [contentItems, setContentItems] = useState(record.content || []);
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(record.photo_url || "");
+  const [photoRemoved, setPhotoRemoved] = useState(false);
   const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handlePhotoSelected = (file) => {
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoRemoved(false);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview("");
+    setPhotoRemoved(true);
+  };
 
   const submit = async () => {
     if (!form.date) return setError("整備日を入力してください。");
@@ -220,6 +263,9 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
     setError("");
     setSaving(true);
     try {
+      let photo_url = record.photo_url || null;
+      if (photoFile) photo_url = await api.uploadPhoto(photoFile, "records");
+      else if (photoRemoved) photo_url = null;
       await onSave({
         date: form.date,
         worker: form.worker,
@@ -227,6 +273,7 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
         content: contentItems,
         next_date: form.nextDate || null,
         legal_date: form.legalDate || null,
+        photo_url,
       });
     } catch (err) {
       setError(err.message || "更新に失敗しました。");
@@ -266,6 +313,7 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
         <Field label="整備内容" required>
           <ContentPicker options={contentOptions} onAddOption={onAddContentOption} selected={contentItems} onChange={setContentItems} />
         </Field>
+        <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={handleRemovePhoto} />
         {error && <p className="error-text">{error}</p>}
       </div>
       <div className="sheet-foot">
@@ -292,7 +340,12 @@ function MachineDetail({ machine, onBack, onAddRecord, onEditRecord }) {
 
       <div className="detail-card">
         <div className="detail-card-top">
-          <div>
+          {machine.photo_url ? (
+            <img src={machine.photo_url} alt="" className="detail-photo" />
+          ) : (
+            <div className="detail-photo detail-photo-empty">写真なし</div>
+          )}
+          <div className="detail-card-top-info">
             <p className="tag-mini">管理番号</p>
             <h2 className="detail-no">{machine.kanri_no}</h2>
           </div>
@@ -303,6 +356,7 @@ function MachineDetail({ machine, onBack, onAddRecord, onEditRecord }) {
           <div><p className="dt">機種</p><p className="dd">{machine.kishu || "―"}</p></div>
           <div><p className="dt">メーカー</p><p className="dd">{machine.maker || "―"}</p></div>
           <div><p className="dt">型式</p><p className="dd">{machine.katashiki || "―"}</p></div>
+          <div><p className="dt">車台番号</p><p className="dd">{machine.chassis_no || "―"}</p></div>
           <div><p className="dt">配置場所</p><p className="dd">{machine.basho || "―"}</p></div>
           <div><p className="dt">点検周期</p><p className="dd">{machine.cycle_days}日ごと</p></div>
           <div><p className="dt">現在の状態</p><p className="dd" style={{ color: status.ink }}>{status.label}</p></div>
@@ -340,6 +394,11 @@ function MachineDetail({ machine, onBack, onAddRecord, onEditRecord }) {
                   </button>
                 </div>
                 <div className="record-main">
+                  {r.photo_url && (
+                    <a href={r.photo_url} target="_blank" rel="noreferrer" className="record-photo-link">
+                      <img src={r.photo_url} alt="整備写真" className="record-photo-thumb" />
+                    </a>
+                  )}
                   <div className="chip-row chip-row-static">
                     {(r.content || []).map((c, i) => (
                       <span className="chip chip-static" key={i}>{formatContentItem(c)}</span>
@@ -374,7 +433,12 @@ function MachineRow({ machine, onOpen }) {
   const latest = latestRecord(machine);
   return (
     <button className="row" onClick={() => onOpen(machine.id)}>
-      <span className="row-tab">{machine.kanri_no}</span>
+      <span className="row-id-group">
+        <span className="row-photo-thumb">
+          {machine.photo_url ? <img src={machine.photo_url} alt="" /> : <span className="row-photo-placeholder">機</span>}
+        </span>
+        <span className="row-tab">{machine.kanri_no}</span>
+      </span>
       <span className="row-main">
         <span className="row-title">{machine.kishu || "（機種未登録）"}</span>
         <span className="row-sub">{[machine.maker, machine.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>

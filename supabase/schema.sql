@@ -51,12 +51,18 @@ create table if not exists machines (
   kishu text not null default '',
   maker text not null default '',
   katashiki text not null default '',
+  chassis_no text not null default '',
   basho text not null default '',
   cycle_days int not null default 90,
   hours numeric not null default 0,
+  photo_url text,
   created_at timestamptz not null default now(),
   unique (owner_id, kanri_no)
 );
+
+-- 既にテーブルを作成済みの場合でも安全に追加できるように（再実行OK）
+alter table machines add column if not exists chassis_no text not null default '';
+alter table machines add column if not exists photo_url text;
 
 alter table machines enable row level security;
 
@@ -78,8 +84,11 @@ create table if not exists maintenance_records (
   next_date date,
   legal_date date,
   content jsonb not null default '[]'::jsonb, -- [{name, unit, amount}]
+  photo_url text,
   created_at timestamptz not null default now()
 );
+
+alter table maintenance_records add column if not exists photo_url text;
 
 alter table maintenance_records enable row level security;
 
@@ -145,3 +154,32 @@ begin
   on conflict do nothing;
 end;
 $$ language plpgsql security definer;
+
+-- ------------------------------------------------------------
+-- Storage: 機械・整備記録の写真を保存するバケット
+-- パスは "<ユーザーID>/machines/xxxx.jpg" や "<ユーザーID>/records/xxxx.jpg" の形で保存する想定
+-- ------------------------------------------------------------
+insert into storage.buckets (id, name, public)
+values ('machine-photos', 'machine-photos', true)
+on conflict (id) do nothing;
+
+create policy "machine-photos: 誰でも閲覧可能" on storage.objects
+  for select using (bucket_id = 'machine-photos');
+
+create policy "machine-photos: 本人フォルダのみアップロード可能" on storage.objects
+  for insert with check (
+    bucket_id = 'machine-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "machine-photos: 本人フォルダのみ更新可能" on storage.objects
+  for update using (
+    bucket_id = 'machine-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
+
+create policy "machine-photos: 本人フォルダのみ削除可能" on storage.objects
+  for delete using (
+    bucket_id = 'machine-photos'
+    and (storage.foldername(name))[1] = auth.uid()::text
+  );
