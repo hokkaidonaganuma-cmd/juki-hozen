@@ -12,6 +12,7 @@ create extension if not exists "pgcrypto";
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default '',
+  app_title text,
   logo_url text,
   header_image_url text,
   background_image_url text,
@@ -19,6 +20,7 @@ create table if not exists profiles (
 );
 
 -- 既にテーブルを作成済みの場合でも安全に追加できるように（再実行OK）
+alter table profiles add column if not exists app_title text;
 alter table profiles add column if not exists logo_url text;
 alter table profiles add column if not exists header_image_url text;
 alter table profiles add column if not exists background_image_url text;
@@ -171,26 +173,31 @@ $$ language plpgsql security definer;
 -- ------------------------------------------------------------
 -- Storage: 機械・整備記録の写真を保存するバケット
 -- パスは "<ユーザーID>/machines/xxxx.jpg" や "<ユーザーID>/records/xxxx.jpg" の形で保存する想定
+-- バケット名は "machine-photos" 固定です（アプリのコードもこの名前を直接参照しています）
 -- ------------------------------------------------------------
 insert into storage.buckets (id, name, public)
 values ('machine-photos', 'machine-photos', true)
-on conflict (id) do nothing;
+on conflict (id) do update set public = true;
 
+drop policy if exists "machine-photos: 誰でも閲覧可能" on storage.objects;
 create policy "machine-photos: 誰でも閲覧可能" on storage.objects
   for select using (bucket_id = 'machine-photos');
 
+drop policy if exists "machine-photos: 本人フォルダのみアップロード可能" on storage.objects;
 create policy "machine-photos: 本人フォルダのみアップロード可能" on storage.objects
   for insert with check (
     bucket_id = 'machine-photos'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+drop policy if exists "machine-photos: 本人フォルダのみ更新可能" on storage.objects;
 create policy "machine-photos: 本人フォルダのみ更新可能" on storage.objects
   for update using (
     bucket_id = 'machine-photos'
     and (storage.foldername(name))[1] = auth.uid()::text
   );
 
+drop policy if exists "machine-photos: 本人フォルダのみ削除可能" on storage.objects;
 create policy "machine-photos: 本人フォルダのみ削除可能" on storage.objects
   for delete using (
     bucket_id = 'machine-photos'

@@ -567,6 +567,66 @@ function MachineRow({ machine, onOpen }) {
   );
 }
 
+/* ------------------------- Machine search (any status) --------------------- */
+function MachineSearch({ machines, onSelect }) {
+  const [query, setQuery] = useState("");
+
+  const results = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    return machines
+      .filter((m) => [m.kanri_no, m.kishu, m.maker, m.katashiki].join(" ").toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [machines, query]);
+
+  return (
+    <div className="machine-search">
+      <p className="machine-search-label">メンテナンス履歴を見る機械を検索</p>
+      <input
+        className="input"
+        placeholder="管理番号・機種・メーカー・型式で検索"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {query.trim() && (
+        <div className="machine-search-results">
+          {results.length === 0 ? (
+            <p className="picker-hint">該当する機械が見つかりません。</p>
+          ) : (
+            results.map((m) => {
+              const status = getStatus(m);
+              const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
+              return (
+                <button
+                  type="button"
+                  className="machine-search-result"
+                  key={m.id}
+                  onClick={() => {
+                    onSelect(m.id);
+                    setQuery("");
+                  }}
+                >
+                  <span className="row-id-group">
+                    <span className="row-photo-thumb">
+                      {m.photo_url ? <img src={m.photo_url} alt="" /> : <span className="row-photo-placeholder">機</span>}
+                    </span>
+                    <span className="row-tab">{m.kanri_no}</span>
+                  </span>
+                  <span className="row-main">
+                    <span className="row-title">{m.kishu || "（機種未登録）"}</span>
+                    <span className="row-sub">{[m.maker, m.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>
+                  </span>
+                  <Hanko tone={toneKey} size={26} />
+                </button>
+              );
+            })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* --------------------------- Alert row (click to expand) ------------------- */
 function AlertRow({ machine, onOpenDetail }) {
   const [expanded, setExpanded] = useState(false);
@@ -672,10 +732,24 @@ function MachineDeleteManager({ machines, onDelete }) {
 
 /* --------------------------- Branding settings -------------------------- */
 function BrandingSettings({ profile, onUpdate }) {
+  const [titleValue, setTitleValue] = useState((profile && profile.app_title) || "");
+  const [titleSaving, setTitleSaving] = useState(false);
   const [logoPreview, setLogoPreview] = useState((profile && profile.logo_url) || "");
   const [headerPreview, setHeaderPreview] = useState((profile && profile.header_image_url) || "");
   const [bgPreview, setBgPreview] = useState((profile && profile.background_image_url) || "");
   const [error, setError] = useState("");
+
+  const saveTitle = async () => {
+    setError("");
+    setTitleSaving(true);
+    try {
+      await onUpdate({ app_title: titleValue.trim() || null });
+    } catch (err) {
+      setError(err.message || "更新に失敗しました。");
+    } finally {
+      setTitleSaving(false);
+    }
+  };
 
   const handleUpload = async (file, field, setPreview) => {
     setError("");
@@ -701,8 +775,27 @@ function BrandingSettings({ profile, onUpdate }) {
     <div className="master-card">
       <h3>表示設定</h3>
       <p className="master-desc">
-        会社ロゴ・ヘッダー画像・背景画像をアップロードすると、台帳全体の見た目をカスタマイズできます。
+        台帳の名称・会社ロゴ・ヘッダー画像・背景画像を変更すると、台帳全体の見た目をカスタマイズできます。
       </p>
+      <Field label="台帳の名称">
+        <div className="inline-add">
+          <input
+            className="input"
+            placeholder="重機保全台帳"
+            value={titleValue}
+            onChange={(e) => setTitleValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                saveTitle();
+              }
+            }}
+          />
+          <button type="button" className="btn btn-sm btn-primary" onClick={saveTitle} disabled={titleSaving}>
+            {titleSaving ? "保存中…" : "保存"}
+          </button>
+        </div>
+      </Field>
       <PhotoUploadField
         label="会社ロゴ（ヘッダーの印マークの代わりに表示）"
         previewUrl={logoPreview}
@@ -972,7 +1065,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
             <div className="seal-mark">検</div>
           )}
           <div className="header-titles">
-            <h1>重機保全台帳</h1>
+            <h1>{(profile && profile.app_title) || "重機保全台帳"}</h1>
           </div>
           <div className="header-actions">
             <span className="user-tag">{profile ? profile.display_name : ""} さん</span>
@@ -1013,6 +1106,12 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
             <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.soon.ink }} />点検間近 {summary.soon}</span>
             <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.due.ink }} />要点検 {summary.due}</span>
             <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.none.ink }} />未点検 {summary.none}</span>
+          </div>
+
+          <div className="toolbar">
+            <div className="toolbar-card machine-search-card">
+              <MachineSearch machines={machines} onSelect={setSelectedId} />
+            </div>
           </div>
 
           <div className="toolbar">
