@@ -116,6 +116,23 @@ body { margin: 0; }
   font-family: 'Shippori Mincho', serif; font-size: 12px; color: var(--sumi-soft);
 }
 .row-photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.row-photo-placeholder { line-height: 1; }
+.seal-mark.seal-logo { object-fit: cover; padding: 0; }
+
+/* ---------------------------- Alert list (due / soon only) ---------------------------- */
+.alert-list { display: flex; flex-direction: column; gap: 10px; }
+.alert-row { border: 1px solid var(--washi-line); border-radius: 12px; background: #fffdf7; overflow: hidden; }
+.alert-row-main { display: flex; align-items: center; gap: 14px; padding: 14px 16px; cursor: pointer; }
+.alert-row-main:hover { background: var(--washi-deep); }
+.alert-row-status {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 10px 16px;
+  border: none; border-top: 1px solid var(--washi-line); background: var(--washi-deep);
+  cursor: pointer; font-family: inherit; text-align: left;
+}
+.alert-row-status:hover { background: var(--washi-line); }
+.alert-row-caret { margin-left: auto; font-size: 11.5px; color: var(--sumi-soft); font-weight: 600; }
+.alert-row-detail { padding: 14px 16px; border-top: 1px dashed var(--washi-line); display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.alert-row-reason { margin: 0; font-size: 13px; color: var(--sumi-soft); }
 .row-tab {
   font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 14px; color: var(--indigo-800);
   background: var(--washi-deep); border: 1px solid var(--washi-line); border-radius: 6px;
@@ -139,6 +156,7 @@ body { margin: 0; }
 
 /* ---------------------------- Detail ---------------------------- */
 .detail { display: flex; flex-direction: column; gap: 18px; }
+.detail-top-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .back-link { align-self: flex-start; background: none; border: none; color: var(--indigo-700); font-weight: 700; font-size: 13.5px; cursor: pointer; padding: 4px 0; }
 .detail-card { background: #fffdf7; border: 1px solid var(--washi-line); border-radius: 14px; padding: 22px; }
 .detail-card-top { display: flex; align-items: center; gap: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--washi-line); margin-bottom: 16px; }

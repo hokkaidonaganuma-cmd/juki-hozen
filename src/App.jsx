@@ -30,35 +30,53 @@ export default function App() {
 
   if (isResetRoute) {
     return (
-      <ResetPasswordPage
-        onDone={() => {
-          window.history.replaceState({}, "", "/");
-          window.location.reload();
-        }}
-      />
+      <div className="app">
+        <ResetPasswordPage
+          onDone={() => {
+            window.history.replaceState({}, "", "/");
+            window.location.reload();
+          }}
+        />
+      </div>
     );
   }
 
   if (session === undefined) {
     return (
-      <div className="ledger-loading">
-        <div className="seal-mark">検</div>
-        <p>読み込み中…</p>
+      <div className="app">
+        <div className="ledger-loading">
+          <div className="seal-mark">検</div>
+          <p>読み込み中…</p>
+        </div>
       </div>
     );
   }
 
   if (!session) {
-    if (authView === "register") {
-      return <RegisterPage onBackToLogin={() => setAuthView("login")} />;
-    }
-    if (authView === "forgot") {
-      return <ForgotPasswordPage onBack={() => setAuthView("login")} />;
-    }
     return (
-      <LoginPage onGoRegister={() => setAuthView("register")} onGoForgot={() => setAuthView("forgot")} />
+      <div className="app">
+        {authView === "register" && <RegisterPage onBackToLogin={() => setAuthView("login")} />}
+        {authView === "forgot" && <ForgotPasswordPage onBack={() => setAuthView("login")} />}
+        {authView === "login" && (
+          <LoginPage onGoRegister={() => setAuthView("register")} onGoForgot={() => setAuthView("forgot")} />
+        )}
+      </div>
     );
   }
 
-  return <Ledger profile={profile} onSignOut={() => api.signOut()} />;
+  const appStyle =
+    profile && profile.background_image_url
+      ? {
+          backgroundImage: `linear-gradient(rgba(22,38,63,0.6), rgba(22,38,63,0.6)), url(${profile.background_image_url})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+          backgroundAttachment: "fixed",
+        }
+      : undefined;
+
+  return (
+    <div className="app" style={appStyle}>
+      <Ledger profile={profile} onProfileChange={setProfile} onSignOut={() => api.signOut()} />
+    </div>
+  );
 }

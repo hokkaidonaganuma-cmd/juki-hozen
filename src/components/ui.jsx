@@ -33,12 +33,20 @@ export function latestRecord(machine) {
   return [...records].sort((a, b) => (a.date < b.date ? 1 : -1))[0];
 }
 
+export function isWithinOneMonthBefore(dateStr) {
+  const target = new Date(dateStr + "T00:00:00");
+  const oneMonthBefore = new Date(target);
+  oneMonthBefore.setMonth(oneMonthBefore.getMonth() - 1);
+  const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
+  return today >= oneMonthBefore && today <= target;
+}
+
 export function getStatus(machine) {
   const latest = latestRecord(machine);
-  if (!latest || !latest.next_date) return TONES.none;
-  const diff = daysUntil(latest.next_date);
+  if (!latest || !latest.legal_date) return TONES.none;
+  const diff = daysUntil(latest.legal_date);
   if (diff < 0) return TONES.due;
-  if (diff <= 7) return TONES.soon;
+  if (isWithinOneMonthBefore(latest.legal_date)) return TONES.soon;
   return TONES.good;
 }
 

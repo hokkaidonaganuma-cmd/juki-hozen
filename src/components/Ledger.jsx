@@ -36,7 +36,7 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
     katashiki: "",
     chassisNo: "",
     basho: "",
-    cycle: 90,
+    cycle: 365,
     hours: 0,
   });
   const [photoFile, setPhotoFile] = useState(null);
@@ -69,7 +69,7 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
         katashiki: form.katashiki.trim(),
         chassis_no: form.chassisNo.trim(),
         basho: form.basho.trim(),
-        cycle_days: Number(form.cycle) || 90,
+        cycle_days: Number(form.cycle) || 365,
         hours: Number(form.hours) || 0,
         photo_url,
       });
@@ -123,6 +123,117 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
         <button className="btn btn-ghost" onClick={onClose}>取消</button>
         <button className="btn btn-primary" onClick={submit} disabled={saving}>
           {saving ? "登録中…" : "台帳に登録する"}
+        </button>
+      </div>
+    </Overlay>
+  );
+}
+
+/* ------------------------- Edit Machine Modal ------------------------ */
+function EditMachineModal({ machine, onClose, onSave, existingNos, kishuOptions, makerOptions, onAddKishu, onAddMaker }) {
+  const [form, setForm] = useState({
+    kanriNo: machine.kanri_no,
+    kishu: machine.kishu || "",
+    maker: machine.maker || "",
+    katashiki: machine.katashiki || "",
+    chassisNo: machine.chassis_no || "",
+    basho: machine.basho || "",
+    cycle: machine.cycle_days,
+    hours: machine.hours,
+  });
+  const [photoFile, setPhotoFile] = useState(null);
+  const [photoPreview, setPhotoPreview] = useState(machine.photo_url || "");
+  const [photoRemoved, setPhotoRemoved] = useState(false);
+  const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+
+  const handlePhotoSelected = (file) => {
+    setPhotoFile(file);
+    setPhotoPreview(URL.createObjectURL(file));
+    setPhotoRemoved(false);
+  };
+
+  const handleRemovePhoto = () => {
+    setPhotoFile(null);
+    setPhotoPreview("");
+    setPhotoRemoved(true);
+  };
+
+  const submit = async () => {
+    const no = form.kanriNo.trim();
+    if (!no) return setError("管理番号を入力してください。");
+    if (no !== machine.kanri_no && existingNos.includes(no)) return setError(`管理番号「${no}」は既に登録されています。`);
+    if (!form.kishu) return setError("機種名を選択してください。");
+    if (!form.maker) return setError("メーカーを選択してください。");
+    setError("");
+    setSaving(true);
+    try {
+      let photo_url = machine.photo_url || null;
+      if (photoFile) photo_url = await api.uploadPhoto(photoFile, "machines");
+      else if (photoRemoved) photo_url = null;
+      await onSave({
+        kanri_no: no,
+        kishu: form.kishu,
+        maker: form.maker,
+        katashiki: form.katashiki.trim(),
+        chassis_no: form.chassisNo.trim(),
+        basho: form.basho.trim(),
+        cycle_days: Number(form.cycle) || 365,
+        hours: Number(form.hours) || 0,
+        photo_url,
+      });
+    } catch (err) {
+      setError(err.message || "更新に失敗しました。");
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Overlay onClose={onClose}>
+      <div className="sheet-head">
+        <h2>機械情報の編集</h2>
+        <button className="icon-btn" onClick={onClose} aria-label="閉じる">×</button>
+      </div>
+      <div className="sheet-body">
+        <Field label="管理番号" required>
+          <input className="input" autoFocus value={form.kanriNo} onChange={set("kanriNo")} />
+        </Field>
+        <div className="grid-2">
+          <Field label="機種名" required>
+            <EditableSelect value={form.kishu} onChange={(v) => setForm((f) => ({ ...f, kishu: v }))} options={kishuOptions} onAddOption={onAddKishu} placeholder="機種を選択" />
+          </Field>
+          <Field label="メーカー" required>
+            <EditableSelect value={form.maker} onChange={(v) => setForm((f) => ({ ...f, maker: v }))} options={makerOptions} onAddOption={onAddMaker} placeholder="メーカーを選択" />
+          </Field>
+        </div>
+        <div className="grid-2">
+          <Field label="型式">
+            <input className="input" placeholder="例：PC128USLC-11" value={form.katashiki} onChange={set("katashiki")} />
+          </Field>
+          <Field label="車台番号">
+            <input className="input" placeholder="例：12345678" value={form.chassisNo} onChange={set("chassisNo")} />
+          </Field>
+        </div>
+        <Field label="配置場所">
+          <input className="input" placeholder="例：第一現場" value={form.basho} onChange={set("basho")} />
+        </Field>
+        <div className="grid-2">
+          <Field label="点検周期（日）">
+            <input type="number" min="1" className="input" value={form.cycle} onChange={set("cycle")} />
+          </Field>
+          <Field label="現在の稼働時間（h）">
+            <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
+          </Field>
+        </div>
+        <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={handleRemovePhoto} />
+        {error && <p className="error-text">{error}</p>}
+      </div>
+      <div className="sheet-foot">
+        <button className="btn btn-ghost" onClick={onClose}>取消</button>
+        <button className="btn btn-primary" onClick={submit} disabled={saving}>
+          {saving ? "更新中…" : "更新する"}
         </button>
       </div>
     </Overlay>
@@ -327,7 +438,7 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
 }
 
 /* ------------------------------ Detail ------------------------------ */
-function MachineDetail({ machine, onBack, onAddRecord, onEditRecord }) {
+function MachineDetail({ machine, onBack, onAddRecord, onEditRecord, onEditMachine }) {
   const status = getStatus(machine);
   const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
   const latest = latestRecord(machine);
@@ -336,7 +447,10 @@ function MachineDetail({ machine, onBack, onAddRecord, onEditRecord }) {
 
   return (
     <div className="detail">
-      <button className="back-link" onClick={onBack}>← 一覧に戻る</button>
+      <div className="detail-top-row">
+        <button className="back-link" onClick={onBack}>← 一覧に戻る</button>
+        <button className="btn btn-ghost btn-sm" onClick={onEditMachine}>機械情報を編集</button>
+      </div>
 
       <div className="detail-card">
         <div className="detail-card-top">
@@ -453,6 +567,67 @@ function MachineRow({ machine, onOpen }) {
   );
 }
 
+/* --------------------------- Alert row (click to expand) ------------------- */
+function AlertRow({ machine, onOpenDetail }) {
+  const [expanded, setExpanded] = useState(false);
+  const status = getStatus(machine);
+  const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
+  const latest = latestRecord(machine);
+  const diff = latest && latest.legal_date ? daysUntil(latest.legal_date) : null;
+  const reason =
+    diff === null ? "" : diff < 0 ? `期限を${Math.abs(diff)}日超過しています` : `あと${diff}日です`;
+
+  return (
+    <div className="alert-row">
+      <div className="alert-row-main" role="button" tabIndex={0} onClick={() => onOpenDetail(machine.id)}>
+        <span className="row-id-group">
+          <span className="row-photo-thumb">
+            {machine.photo_url ? <img src={machine.photo_url} alt="" /> : <span className="row-photo-placeholder">機</span>}
+          </span>
+          <span className="row-tab">{machine.kanri_no}</span>
+        </span>
+        <span className="row-main">
+          <span className="row-title">{machine.kishu || "（機種未登録）"}</span>
+          <span className="row-sub">{[machine.maker, machine.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>
+        </span>
+        <span className="row-place">{machine.basho || "―"}</span>
+      </div>
+      <button
+        type="button"
+        className="alert-row-status"
+        onClick={(e) => {
+          e.stopPropagation();
+          setExpanded((v) => !v);
+        }}
+      >
+        <Hanko tone={toneKey} size={30} />
+        <span className="row-status-label" style={{ color: status.ink }}>{status.label}</span>
+        <span className="alert-row-caret">{expanded ? "点検内容を閉じる ▲" : "点検内容を見る ▼"}</span>
+      </button>
+      {expanded && (
+        <div className="alert-row-detail">
+          <p className="alert-row-reason">
+            次回特定自主検査予定日：{latest && latest.legal_date ? fmtDate(latest.legal_date) : "未設定"}
+            {reason && <span className="overdue-flag">{reason}</span>}
+          </p>
+          {latest && latest.content && latest.content.length > 0 ? (
+            <div className="chip-row chip-row-static">
+              {latest.content.map((c, i) => (
+                <span className="chip chip-static" key={i}>{formatContentItem(c)}</span>
+              ))}
+            </div>
+          ) : (
+            <p className="picker-hint">直近の整備内容の記録がありません。</p>
+          )}
+          <button type="button" className="btn btn-sm btn-primary" onClick={() => onOpenDetail(machine.id)}>
+            詳細を見る
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ------------------------- Machine delete manager ----------------------- */
 function MachineDeleteManager({ machines, onDelete }) {
   return (
@@ -495,6 +670,62 @@ function MachineDeleteManager({ machines, onDelete }) {
   );
 }
 
+/* --------------------------- Branding settings -------------------------- */
+function BrandingSettings({ profile, onUpdate }) {
+  const [logoPreview, setLogoPreview] = useState((profile && profile.logo_url) || "");
+  const [headerPreview, setHeaderPreview] = useState((profile && profile.header_image_url) || "");
+  const [bgPreview, setBgPreview] = useState((profile && profile.background_image_url) || "");
+  const [error, setError] = useState("");
+
+  const handleUpload = async (file, field, setPreview) => {
+    setError("");
+    try {
+      const url = await api.uploadPhoto(file, "branding");
+      setPreview(url);
+      await onUpdate({ [field]: url });
+    } catch (err) {
+      setError(err.message || "アップロードに失敗しました。");
+    }
+  };
+
+  const handleRemove = async (field, setPreview) => {
+    setPreview("");
+    try {
+      await onUpdate({ [field]: null });
+    } catch (err) {
+      setError(err.message || "更新に失敗しました。");
+    }
+  };
+
+  return (
+    <div className="master-card">
+      <h3>表示設定</h3>
+      <p className="master-desc">
+        会社ロゴ・ヘッダー画像・背景画像をアップロードすると、台帳全体の見た目をカスタマイズできます。
+      </p>
+      <PhotoUploadField
+        label="会社ロゴ（ヘッダーの印マークの代わりに表示）"
+        previewUrl={logoPreview}
+        onFileSelected={(f) => handleUpload(f, "logo_url", setLogoPreview)}
+        onRemove={() => handleRemove("logo_url", setLogoPreview)}
+      />
+      <PhotoUploadField
+        label="ヘッダー背景画像"
+        previewUrl={headerPreview}
+        onFileSelected={(f) => handleUpload(f, "header_image_url", setHeaderPreview)}
+        onRemove={() => handleRemove("header_image_url", setHeaderPreview)}
+      />
+      <PhotoUploadField
+        label="アプリ全体の背景画像"
+        previewUrl={bgPreview}
+        onFileSelected={(f) => handleUpload(f, "background_image_url", setBgPreview)}
+        onRemove={() => handleRemove("background_image_url", setBgPreview)}
+      />
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  );
+}
+
 /* ------------------------------ Master page --------------------------- */
 function MasterPage({
   onBack,
@@ -509,6 +740,8 @@ function MasterPage({
   onChangeContentUnit,
   machines,
   onDeleteMachine,
+  profile,
+  onUpdateProfile,
 }) {
   return (
     <div className="detail">
@@ -523,13 +756,14 @@ function MasterPage({
         <MasterListEditor title="実施者" items={worker} onAdd={(v) => onAddOpt("worker", v)} onRemove={onRemoveOpt} />
         <MasterContentEditor items={content} onAdd={onAddContent} onRemove={onRemoveContent} onChangeUnit={onChangeContentUnit} />
         <MachineDeleteManager machines={machines} onDelete={onDeleteMachine} />
+        <BrandingSettings profile={profile} onUpdate={onUpdateProfile} />
       </div>
     </div>
   );
 }
 
 /* -------------------------------- Ledger app --------------------------------- */
-export default function Ledger({ profile, onSignOut }) {
+export default function Ledger({ profile, onProfileChange, onSignOut }) {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [machines, setMachines] = useState([]);
@@ -538,6 +772,7 @@ export default function Ledger({ profile, onSignOut }) {
 
   const [selectedId, setSelectedId] = useState(null);
   const [showAddMachine, setShowAddMachine] = useState(false);
+  const [showEditMachine, setShowEditMachine] = useState(false);
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [page, setPage] = useState("list");
@@ -611,14 +846,18 @@ export default function Ledger({ profile, onSignOut }) {
   const hasFilter = filterKanriNo || filterKishu || filterMaker;
   const clearFilters = () => { setFilterKanriNo(""); setFilterKishu(""); setFilterMaker(""); };
 
-  const groupedByMaker = useMemo(() => {
-    const map = new Map();
+  const alertGroups = useMemo(() => {
+    const due = [];
+    const soon = [];
     filtered.forEach((m) => {
-      const key = m.maker || "メーカー未設定";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(m);
+      const s = getStatus(m);
+      if (s === TONES.due) due.push(m);
+      else if (s === TONES.soon) soon.push(m);
     });
-    return Array.from(map.entries()).sort((a, b) => a[0].localeCompare(b[0], "ja"));
+    const groups = [];
+    if (due.length) groups.push({ key: "due", label: "要点検", list: due });
+    if (soon.length) groups.push({ key: "soon", label: "点検間近", list: soon });
+    return groups;
   }, [filtered]);
 
   const selected = machines.find((m) => m.id === selectedId) || null;
@@ -683,6 +922,19 @@ export default function Ledger({ profile, onSignOut }) {
     if (selectedId === id) setSelectedId(null);
   };
 
+  const handleUpdateMachine = async (payload) => {
+    const updated = await api.updateMachine(selected.id, payload);
+    setMachines((prev) =>
+      prev.map((m) => (m.id === updated.id ? { ...updated, maintenance_records: m.maintenance_records || [] } : m))
+    );
+    setShowEditMachine(false);
+  };
+
+  const handleUpdateProfile = async (updates) => {
+    const updated = await api.updateProfile(profile.id, updates);
+    if (onProfileChange) onProfileChange(updated);
+  };
+
   if (loading) {
     return (
       <div className="ledger-loading">
@@ -701,14 +953,26 @@ export default function Ledger({ profile, onSignOut }) {
     );
   }
 
+  const headerStyle =
+    profile && profile.header_image_url
+      ? {
+          backgroundImage: `linear-gradient(rgba(22,38,63,0.55), rgba(22,38,63,0.55)), url(${profile.header_image_url})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }
+      : undefined;
+
   return (
     <>
-      <header className="header">
+      <header className="header" style={headerStyle}>
         <div className="header-row">
-          <div className="seal-mark">検</div>
+          {profile && profile.logo_url ? (
+            <img src={profile.logo_url} alt="ロゴ" className="seal-mark seal-logo" />
+          ) : (
+            <div className="seal-mark">検</div>
+          )}
           <div className="header-titles">
             <h1>重機保全台帳</h1>
-            <p className="sub">管理番号で機械を登録し、整備の記録を積み重ねる台帳</p>
           </div>
           <div className="header-actions">
             <span className="user-tag">{profile ? profile.display_name : ""} さん</span>
@@ -738,6 +1002,8 @@ export default function Ledger({ profile, onSignOut }) {
             onChangeContentUnit={changeContentUnit}
             machines={machines}
             onDeleteMachine={handleDeleteMachine}
+            profile={profile}
+            onUpdateProfile={handleUpdateProfile}
           />
         </div>
       ) : (
@@ -777,6 +1043,7 @@ export default function Ledger({ profile, onSignOut }) {
                 onBack={() => setSelectedId(null)}
                 onAddRecord={() => setShowAddRecord(true)}
                 onEditRecord={(r) => setEditingRecord(r)}
+                onEditMachine={() => setShowEditMachine(true)}
               />
             ) : filtered.length === 0 ? (
               <div className="empty-state">
@@ -784,16 +1051,22 @@ export default function Ledger({ profile, onSignOut }) {
                 <h3>{machines.length === 0 ? "台帳はまだ空です" : "該当する機械が見つかりません"}</h3>
                 <p>{machines.length === 0 ? "「＋ 新規機械登録」から管理番号を入力して、最初の一台を登録しましょう。" : "絞り込み条件を変えてお試しください。"}</p>
               </div>
+            ) : alertGroups.length === 0 ? (
+              <div className="empty-state">
+                <div className="seal-mark" style={{ margin: "0 auto", color: "var(--indigo-800)", borderColor: "var(--washi-line)" }}>良</div>
+                <h3>現在、点検が必要な機械はありません</h3>
+                <p>要点検・点検間近の機械があれば、ここに表示されます。</p>
+              </div>
             ) : (
               <div className="grouped-list">
-                {groupedByMaker.map(([makerName, list]) => (
-                  <div className="maker-group" key={makerName}>
+                {alertGroups.map((g) => (
+                  <div className="maker-group" key={g.key}>
                     <div className="group-header">
-                      <span className="group-header-title">{makerName}</span>
-                      <span className="group-header-count">{list.length}台</span>
+                      <span className="group-header-title">{g.label}</span>
+                      <span className="group-header-count">{g.list.length}台</span>
                     </div>
-                    <div className="list">
-                      {list.map((m) => <MachineRow key={m.id} machine={m} onOpen={setSelectedId} />)}
+                    <div className="alert-list">
+                      {g.list.map((m) => <AlertRow key={m.id} machine={m} onOpenDetail={setSelectedId} />)}
                     </div>
                   </div>
                 ))}
@@ -823,6 +1096,18 @@ export default function Ledger({ profile, onSignOut }) {
           onAddContentOption={addContentOption}
           workerOptions={workerOptions.map((o) => o.value)}
           onAddWorker={(v) => addOption("worker", v)}
+        />
+      )}
+      {showEditMachine && selected && (
+        <EditMachineModal
+          machine={selected}
+          existingNos={machines.filter((m) => m.id !== selected.id).map((m) => m.kanri_no)}
+          onClose={() => setShowEditMachine(false)}
+          onSave={handleUpdateMachine}
+          kishuOptions={kishuOptions.map((o) => o.value)}
+          makerOptions={makerOptions.map((o) => o.value)}
+          onAddKishu={(v) => addOption("kishu", v)}
+          onAddMaker={(v) => addOption("maker", v)}
         />
       )}
       {editingRecord && selected && (

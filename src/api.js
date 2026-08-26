@@ -53,6 +53,12 @@ export async function fetchProfile(userId) {
   return data;
 }
 
+export async function updateProfile(userId, updates) {
+  const { data, error } = await supabase.from("profiles").update(updates).eq("id", userId).select().single();
+  if (error) throw error;
+  return data;
+}
+
 /* ---------------------------- Photos ---------------------------- */
 
 // folder は "machines" または "records" を想定
@@ -85,6 +91,12 @@ export async function fetchMachines() {
 
 export async function addMachine(machine) {
   const { data, error } = await supabase.from("machines").insert(machine).select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function updateMachine(id, payload) {
+  const { data, error } = await supabase.from("machines").update(payload).eq("id", id).select().single();
   if (error) throw error;
   return data;
 }

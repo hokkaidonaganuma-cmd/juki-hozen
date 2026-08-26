@@ -12,8 +12,16 @@ create extension if not exists "pgcrypto";
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   display_name text not null default '',
+  logo_url text,
+  header_image_url text,
+  background_image_url text,
   created_at timestamptz not null default now()
 );
+
+-- 既にテーブルを作成済みの場合でも安全に追加できるように（再実行OK）
+alter table profiles add column if not exists logo_url text;
+alter table profiles add column if not exists header_image_url text;
+alter table profiles add column if not exists background_image_url text;
 
 alter table profiles enable row level security;
 
@@ -25,6 +33,11 @@ create policy "profiles: 本人のみ更新" on profiles
 
 create policy "profiles: 本人のみ作成" on profiles
   for insert with check (auth.uid() = id);
+
+-- 表示設定（会社ロゴ・ヘッダー画像・背景画像）。既存プロジェクトでも安全に再実行可能
+alter table profiles add column if not exists logo_url text;
+alter table profiles add column if not exists header_image_url text;
+alter table profiles add column if not exists background_url text;
 
 -- サインアップ時に自動で profiles 行を作るトリガー
 create or replace function public.handle_new_user()
