@@ -23,9 +23,6 @@ function addDays(dateStr, days) {
   d.setDate(d.getDate() + Number(days || 0));
   return d.toISOString().slice(0, 10);
 }
-function unique(arr) {
-  return Array.from(new Set(arr.filter(Boolean))).sort((a, b) => a.localeCompare(b, "ja"));
-}
 
 /* ------------------------- Add Machine Modal ------------------------ */
 function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOptions, onAddKishu, onAddMaker }) {
@@ -588,7 +585,7 @@ function SearchResultRow({ machine, onSelect }) {
   );
 }
 
-function MachineSearch({ machines, quickMakerOptions, onSelect }) {
+function MachineSearch({ machines, quickMakerOptions, onSelect, onAddMachine }) {
   const [query, setQuery] = useState("");
   const [quickFilter, setQuickFilter] = useState(null);
 
@@ -619,7 +616,14 @@ function MachineSearch({ machines, quickMakerOptions, onSelect }) {
 
   return (
     <div className="machine-search">
-      <p className="machine-search-label">メンテナンス履歴を見る機械を検索</p>
+      <div className="machine-search-top">
+        <p className="machine-search-label">メンテナンス履歴を見る機械を検索</p>
+        {onAddMachine && (
+          <button type="button" className="btn btn-primary btn-sm" onClick={onAddMachine}>
+            ＋ 新規機械登録
+          </button>
+        )}
+      </div>
       <input
         className="input"
         placeholder="管理番号・機種・メーカー・型式で検索"
@@ -924,10 +928,6 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
   const [editingRecord, setEditingRecord] = useState(null);
   const [page, setPage] = useState("list");
 
-  const [filterKanriNo, setFilterKanriNo] = useState("");
-  const [filterKishu, setFilterKishu] = useState("");
-  const [filterMaker, setFilterMaker] = useState("");
-
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError("");
@@ -977,27 +977,10 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
     setMasterContent((prev) => prev.map((o) => (o.id === id ? { ...o, unit } : o)));
   };
 
-  const uniqueKanriNos = useMemo(() => machines.map((m) => m.kanri_no).sort((a, b) => a.localeCompare(b, "ja")), [machines]);
-  const uniqueKishus = useMemo(() => unique(machines.map((m) => m.kishu)), [machines]);
-  const uniqueMakers = useMemo(() => unique(machines.map((m) => m.maker)), [machines]);
-
-  const filtered = useMemo(
-    () =>
-      machines.filter(
-        (m) =>
-          (!filterKanriNo || m.kanri_no === filterKanriNo) &&
-          (!filterKishu || m.kishu === filterKishu) &&
-          (!filterMaker || m.maker === filterMaker)
-      ),
-    [machines, filterKanriNo, filterKishu, filterMaker]
-  );
-  const hasFilter = filterKanriNo || filterKishu || filterMaker;
-  const clearFilters = () => { setFilterKanriNo(""); setFilterKishu(""); setFilterMaker(""); };
-
   const alertGroups = useMemo(() => {
     const due = [];
     const soon = [];
-    filtered.forEach((m) => {
+    machines.forEach((m) => {
       const s = getStatus(m);
       if (s === TONES.due) due.push(m);
       else if (s === TONES.soon) soon.push(m);
@@ -1006,7 +989,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
     if (due.length) groups.push({ key: "due", label: "要点検", list: due });
     if (soon.length) groups.push({ key: "soon", label: "点検間近", list: soon });
     return groups;
-  }, [filtered]);
+  }, [machines]);
 
   const selected = machines.find((m) => m.id === selectedId) || null;
   const existingNos = machines.map((m) => m.kanri_no);
@@ -1166,28 +1149,12 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
 
           <div className="toolbar">
             <div className="toolbar-card machine-search-card">
-              <MachineSearch machines={machines} quickMakerOptions={quickMakerOptions} onSelect={setSelectedId} />
-            </div>
-          </div>
-
-          <div className="toolbar">
-            <div className="toolbar-card">
-              <div className="filter-group">
-                <select className="input" value={filterKanriNo} onChange={(e) => setFilterKanriNo(e.target.value)}>
-                  <option value="">管理番号：すべて</option>
-                  {uniqueKanriNos.map((no) => <option key={no} value={no}>{no}</option>)}
-                </select>
-                <select className="input" value={filterKishu} onChange={(e) => setFilterKishu(e.target.value)}>
-                  <option value="">機種：すべて</option>
-                  {uniqueKishus.map((k) => <option key={k} value={k}>{k}</option>)}
-                </select>
-                <select className="input" value={filterMaker} onChange={(e) => setFilterMaker(e.target.value)}>
-                  <option value="">メーカー：すべて</option>
-                  {uniqueMakers.map((mk) => <option key={mk} value={mk}>{mk}</option>)}
-                </select>
-                {hasFilter && <button className="btn btn-ghost btn-sm" onClick={clearFilters}>絞り込み解除</button>}
-              </div>
-              <button className="btn btn-primary" onClick={() => setShowAddMachine(true)}>＋ 新規機械登録</button>
+              <MachineSearch
+                machines={machines}
+                quickMakerOptions={quickMakerOptions}
+                onSelect={setSelectedId}
+                onAddMachine={() => setShowAddMachine(true)}
+              />
             </div>
           </div>
 
@@ -1200,11 +1167,11 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
                 onEditRecord={(r) => setEditingRecord(r)}
                 onEditMachine={() => setShowEditMachine(true)}
               />
-            ) : filtered.length === 0 ? (
+            ) : machines.length === 0 ? (
               <div className="empty-state">
                 <div className="seal-mark" style={{ margin: "0 auto", color: "var(--indigo-800)", borderColor: "var(--washi-line)" }}>印</div>
-                <h3>{machines.length === 0 ? "台帳はまだ空です" : "該当する機械が見つかりません"}</h3>
-                <p>{machines.length === 0 ? "「＋ 新規機械登録」から管理番号を入力して、最初の一台を登録しましょう。" : "絞り込み条件を変えてお試しください。"}</p>
+                <h3>台帳はまだ空です</h3>
+                <p>「＋ 新規機械登録」から管理番号を入力して、最初の一台を登録しましょう。</p>
               </div>
             ) : alertGroups.length === 0 ? (
               <div className="empty-state">
