@@ -119,11 +119,16 @@ create index if not exists records_owner_idx on maintenance_records(owner_id);
 create table if not exists master_options (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null default auth.uid() references auth.users(id) on delete cascade,
-  type text not null check (type in ('kishu', 'maker', 'worker')),
+  type text not null check (type in ('kishu', 'maker', 'worker', 'quick_maker')),
   value text not null,
   created_at timestamptz not null default now(),
   unique (owner_id, type, value)
 );
+
+-- 既存プロジェクトで先にテーブルが作られていた場合、type の制約を緩めて quick_maker を許可する
+alter table master_options drop constraint if exists master_options_type_check;
+alter table master_options add constraint master_options_type_check
+  check (type in ('kishu', 'maker', 'worker', 'quick_maker'));
 
 alter table master_options enable row level security;
 
@@ -158,7 +163,9 @@ begin
     (uid, 'kishu', '油圧ショベル'), (uid, 'kishu', 'ホイールローダー'), (uid, 'kishu', 'ブルドーザー'),
     (uid, 'kishu', 'クレーン'), (uid, 'kishu', 'ダンプトラック'), (uid, 'kishu', '振動ローラー'), (uid, 'kishu', 'フォークリフト'),
     (uid, 'maker', 'ヤンマー'), (uid, 'maker', '日立'), (uid, 'maker', 'コマツ'), (uid, 'maker', 'CAT'),
-    (uid, 'worker', '田中'), (uid, 'worker', '鈴木'), (uid, 'worker', '佐藤'), (uid, 'worker', '高橋')
+    (uid, 'worker', '田中'), (uid, 'worker', '鈴木'), (uid, 'worker', '佐藤'), (uid, 'worker', '高橋'),
+    (uid, 'quick_maker', 'ヤンマー'), (uid, 'quick_maker', '日立'), (uid, 'quick_maker', 'CAT'),
+    (uid, 'quick_maker', 'コマツ'), (uid, 'quick_maker', '諸岡'), (uid, 'quick_maker', 'その他')
   on conflict do nothing;
 
   insert into master_content (owner_id, name, unit) values
@@ -169,6 +176,18 @@ begin
   on conflict do nothing;
 end;
 $$ language plpgsql security definer;
+
+-- 既存ユーザー（このアップデート以前にサインアップ済みのアカウント）にも
+-- クイック検索ボタンの初期値を一度だけ補充する
+insert into master_options (owner_id, type, value)
+select u.id, t.type, t.value
+from auth.users u
+cross join (
+  values
+    ('quick_maker', 'ヤンマー'), ('quick_maker', '日立'), ('quick_maker', 'CAT'),
+    ('quick_maker', 'コマツ'), ('quick_maker', '諸岡'), ('quick_maker', 'その他')
+) as t(type, value)
+on conflict do nothing;
 
 -- ------------------------------------------------------------
 -- Storage: 機械・整備記録の写真を保存するバケット

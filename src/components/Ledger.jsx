@@ -568,8 +568,29 @@ function MachineRow({ machine, onOpen }) {
 }
 
 /* ------------------------- Machine search (any status) --------------------- */
-function MachineSearch({ machines, onSelect }) {
+function SearchResultRow({ machine, onSelect }) {
+  const status = getStatus(machine);
+  const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
+  return (
+    <button type="button" className="machine-search-result" onClick={() => onSelect(machine.id)}>
+      <span className="row-id-group">
+        <span className="row-photo-thumb">
+          {machine.photo_url ? <img src={machine.photo_url} alt="" /> : <span className="row-photo-placeholder">機</span>}
+        </span>
+        <span className="row-tab">{machine.kanri_no}</span>
+      </span>
+      <span className="row-main">
+        <span className="row-title">{machine.kishu || "（機種未登録）"}</span>
+        <span className="row-sub">{[machine.maker, machine.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>
+      </span>
+      <Hanko tone={toneKey} size={26} />
+    </button>
+  );
+}
+
+function MachineSearch({ machines, quickMakerOptions, onSelect }) {
   const [query, setQuery] = useState("");
+  const [quickFilter, setQuickFilter] = useState(null);
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -579,6 +600,23 @@ function MachineSearch({ machines, onSelect }) {
       .slice(0, 8);
   }, [machines, query]);
 
+  const namedMakers = useMemo(
+    () => quickMakerOptions.map((o) => o.value).filter((v) => v !== "その他"),
+    [quickMakerOptions]
+  );
+
+  const quickResults = useMemo(() => {
+    if (!quickFilter) return [];
+    if (quickFilter === "その他") return machines.filter((m) => !namedMakers.includes(m.maker));
+    return machines.filter((m) => m.maker === quickFilter);
+  }, [machines, quickFilter, namedMakers]);
+
+  const handleSelect = (id) => {
+    onSelect(id);
+    setQuery("");
+    setQuickFilter(null);
+  };
+
   return (
     <div className="machine-search">
       <p className="machine-search-label">メンテナンス履歴を見る機械を検索</p>
@@ -586,42 +624,51 @@ function MachineSearch({ machines, onSelect }) {
         className="input"
         placeholder="管理番号・機種・メーカー・型式で検索"
         value={query}
-        onChange={(e) => setQuery(e.target.value)}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setQuickFilter(null);
+        }}
       />
       {query.trim() && (
         <div className="machine-search-results">
           {results.length === 0 ? (
             <p className="picker-hint">該当する機械が見つかりません。</p>
           ) : (
-            results.map((m) => {
-              const status = getStatus(m);
-              const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
-              return (
-                <button
-                  type="button"
-                  className="machine-search-result"
-                  key={m.id}
-                  onClick={() => {
-                    onSelect(m.id);
-                    setQuery("");
-                  }}
-                >
-                  <span className="row-id-group">
-                    <span className="row-photo-thumb">
-                      {m.photo_url ? <img src={m.photo_url} alt="" /> : <span className="row-photo-placeholder">機</span>}
-                    </span>
-                    <span className="row-tab">{m.kanri_no}</span>
-                  </span>
-                  <span className="row-main">
-                    <span className="row-title">{m.kishu || "（機種未登録）"}</span>
-                    <span className="row-sub">{[m.maker, m.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>
-                  </span>
-                  <Hanko tone={toneKey} size={26} />
-                </button>
-              );
-            })
+            results.map((m) => <SearchResultRow key={m.id} machine={m} onSelect={handleSelect} />)
           )}
         </div>
+      )}
+
+      {quickMakerOptions.length > 0 && (
+        <>
+          <div className="quick-maker-row">
+            {quickMakerOptions.map((o) => (
+              <button
+                type="button"
+                key={o.id}
+                className={"quick-maker-btn" + (quickFilter === o.value ? " active" : "")}
+                onClick={() => {
+                  setQuery("");
+                  setQuickFilter((v) => (v === o.value ? null : o.value));
+                }}
+              >
+                {o.value}
+              </button>
+            ))}
+          </div>
+          {quickFilter && (
+            <div className="machine-search-results">
+              <p className="machine-search-results-title">
+                {quickFilter}の自社機械（{quickResults.length}台）
+              </p>
+              {quickResults.length === 0 ? (
+                <p className="picker-hint">該当する機械がありません。</p>
+              ) : (
+                quickResults.map((m) => <SearchResultRow key={m.id} machine={m} onSelect={handleSelect} />)
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -826,6 +873,7 @@ function MasterPage({
   maker,
   worker,
   content,
+  quickMaker,
   onAddOpt,
   onRemoveOpt,
   onAddContent,
@@ -848,6 +896,12 @@ function MasterPage({
         <MasterListEditor title="メーカー" items={maker} onAdd={(v) => onAddOpt("maker", v)} onRemove={onRemoveOpt} />
         <MasterListEditor title="実施者" items={worker} onAdd={(v) => onAddOpt("worker", v)} onRemove={onRemoveOpt} />
         <MasterContentEditor items={content} onAdd={onAddContent} onRemove={onRemoveContent} onChangeUnit={onChangeContentUnit} />
+        <MasterListEditor
+          title="検索ボタン（メーカー別）"
+          items={quickMaker}
+          onAdd={(v) => onAddOpt("quick_maker", v)}
+          onRemove={onRemoveOpt}
+        />
         <MachineDeleteManager machines={machines} onDelete={onDeleteMachine} />
         <BrandingSettings profile={profile} onUpdate={onUpdateProfile} />
       </div>
@@ -900,6 +954,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
   const kishuOptions = useMemo(() => masterOptions.filter((o) => o.type === "kishu"), [masterOptions]);
   const makerOptions = useMemo(() => masterOptions.filter((o) => o.type === "maker"), [masterOptions]);
   const workerOptions = useMemo(() => masterOptions.filter((o) => o.type === "worker"), [masterOptions]);
+  const quickMakerOptions = useMemo(() => masterOptions.filter((o) => o.type === "quick_maker"), [masterOptions]);
 
   const addOption = async (type, value) => {
     const row = await api.addMasterOption(type, value);
@@ -1088,6 +1143,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
             maker={makerOptions}
             worker={workerOptions}
             content={masterContent}
+            quickMaker={quickMakerOptions}
             onAddOpt={addOption}
             onRemoveOpt={removeOption}
             onAddContent={addContentOption}
@@ -1110,7 +1166,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
 
           <div className="toolbar">
             <div className="toolbar-card machine-search-card">
-              <MachineSearch machines={machines} onSelect={setSelectedId} />
+              <MachineSearch machines={machines} quickMakerOptions={quickMakerOptions} onSelect={setSelectedId} />
             </div>
           </div>
 

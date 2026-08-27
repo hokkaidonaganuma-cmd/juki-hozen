@@ -87,6 +87,15 @@ body { margin: 0; }
 }
 .machine-search-result:hover { background: var(--washi-deep); }
 .machine-search-result .row-main { flex: 1; }
+.machine-search-results-title { font-size: 12px; font-weight: 700; color: var(--indigo-800); margin: 2px 4px 6px; }
+.quick-maker-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
+.quick-maker-btn {
+  font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; font-weight: 700; font-size: 13px;
+  border: 1px solid var(--washi-line); background: var(--washi-deep); color: var(--indigo-800);
+  border-radius: 999px; padding: 8px 16px; cursor: pointer; transition: background .12s ease, color .12s ease;
+}
+.quick-maker-btn:hover { background: #fffdf7; }
+.quick-maker-btn.active { background: var(--indigo-700); color: var(--washi); border-color: var(--indigo-700); }
 .filter-group .input { min-width: 150px; flex: 1 1 150px; }
 
 /* ---------------------------- Buttons ---------------------------- */
