@@ -927,6 +927,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
   const [showAddRecord, setShowAddRecord] = useState(false);
   const [editingRecord, setEditingRecord] = useState(null);
   const [page, setPage] = useState("list");
+  const [statusFilter, setStatusFilter] = useState(null); // null | "good" | "soon" | "due" | "none"
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -977,32 +978,40 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
     setMasterContent((prev) => prev.map((o) => (o.id === id ? { ...o, unit } : o)));
   };
 
-  const alertGroups = useMemo(() => {
-    const due = [];
-    const soon = [];
-    machines.forEach((m) => {
-      const s = getStatus(m);
-      if (s === TONES.due) due.push(m);
-      else if (s === TONES.soon) soon.push(m);
-    });
-    const groups = [];
-    if (due.length) groups.push({ key: "due", label: "要点検", list: due });
-    if (soon.length) groups.push({ key: "soon", label: "点検間近", list: soon });
-    return groups;
-  }, [machines]);
+  const STATUS_LABELS = { good: "良好", soon: "点検間近", due: "要点検", none: "未点検" };
 
-  const selected = machines.find((m) => m.id === selectedId) || null;
-  const existingNos = machines.map((m) => m.kanri_no);
-
-  const summary = useMemo(() => {
-    const c = { good: 0, soon: 0, due: 0, none: 0 };
+  const machinesByStatus = useMemo(() => {
+    const map = { good: [], soon: [], due: [], none: [] };
     machines.forEach((m) => {
       const s = getStatus(m);
       const key = Object.keys(TONES).find((k) => TONES[k] === s);
-      c[key]++;
+      map[key].push(m);
     });
-    return c;
+    return map;
   }, [machines]);
+
+  const summary = useMemo(
+    () => ({
+      good: machinesByStatus.good.length,
+      soon: machinesByStatus.soon.length,
+      due: machinesByStatus.due.length,
+      none: machinesByStatus.none.length,
+    }),
+    [machinesByStatus]
+  );
+
+  const visibleGroups = useMemo(() => {
+    if (statusFilter) {
+      return [{ key: statusFilter, label: STATUS_LABELS[statusFilter], list: machinesByStatus[statusFilter] }];
+    }
+    const groups = [];
+    if (machinesByStatus.due.length) groups.push({ key: "due", label: "要点検", list: machinesByStatus.due });
+    if (machinesByStatus.soon.length) groups.push({ key: "soon", label: "点検間近", list: machinesByStatus.soon });
+    return groups;
+  }, [statusFilter, machinesByStatus]);
+
+  const selected = machines.find((m) => m.id === selectedId) || null;
+  const existingNos = machines.map((m) => m.kanri_no);
 
   const handleAddMachine = async (payload) => {
     const row = await api.addMachine(payload);
@@ -1141,10 +1150,34 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
       ) : (
         <>
           <div className="summary-strip">
-            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.good.ink }} />良好 {summary.good}</span>
-            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.soon.ink }} />点検間近 {summary.soon}</span>
-            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.due.ink }} />要点検 {summary.due}</span>
-            <span className="summary-chip"><span className="summary-dot" style={{ background: TONES.none.ink }} />未点検 {summary.none}</span>
+            <button
+              type="button"
+              className={"summary-chip" + (statusFilter === "good" ? " active" : "")}
+              onClick={() => setStatusFilter((v) => (v === "good" ? null : "good"))}
+            >
+              <span className="summary-dot" style={{ background: TONES.good.ink }} />良好 {summary.good}
+            </button>
+            <button
+              type="button"
+              className={"summary-chip" + (statusFilter === "soon" ? " active" : "")}
+              onClick={() => setStatusFilter((v) => (v === "soon" ? null : "soon"))}
+            >
+              <span className="summary-dot" style={{ background: TONES.soon.ink }} />点検間近 {summary.soon}
+            </button>
+            <button
+              type="button"
+              className={"summary-chip" + (statusFilter === "due" ? " active" : "")}
+              onClick={() => setStatusFilter((v) => (v === "due" ? null : "due"))}
+            >
+              <span className="summary-dot" style={{ background: TONES.due.ink }} />要点検 {summary.due}
+            </button>
+            <button
+              type="button"
+              className={"summary-chip" + (statusFilter === "none" ? " active" : "")}
+              onClick={() => setStatusFilter((v) => (v === "none" ? null : "none"))}
+            >
+              <span className="summary-dot" style={{ background: TONES.none.ink }} />未点検 {summary.none}
+            </button>
           </div>
 
           <div className="toolbar">
@@ -1173,15 +1206,21 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
                 <h3>台帳はまだ空です</h3>
                 <p>「＋ 新規機械登録」から管理番号を入力して、最初の一台を登録しましょう。</p>
               </div>
-            ) : alertGroups.length === 0 ? (
+            ) : visibleGroups.every((g) => g.list.length === 0) ? (
               <div className="empty-state">
-                <div className="seal-mark" style={{ margin: "0 auto", color: "var(--indigo-800)", borderColor: "var(--washi-line)" }}>良</div>
-                <h3>現在、点検が必要な機械はありません</h3>
-                <p>要点検・点検間近の機械があれば、ここに表示されます。</p>
+                <div className="seal-mark" style={{ margin: "0 auto", color: "var(--indigo-800)", borderColor: "var(--washi-line)" }}>
+                  {statusFilter ? TONES[statusFilter].kanji : "良"}
+                </div>
+                <h3>{statusFilter ? `「${STATUS_LABELS[statusFilter]}」に該当する機械はありません` : "現在、点検が必要な機械はありません"}</h3>
+                <p>
+                  {statusFilter
+                    ? "上のチップをもう一度押すと、要点検・点検間近の一覧に戻ります。"
+                    : "要点検・点検間近の機械があれば、ここに表示されます。"}
+                </p>
               </div>
             ) : (
               <div className="grouped-list">
-                {alertGroups.map((g) => (
+                {visibleGroups.map((g) => (
                   <div className="maker-group" key={g.key}>
                     <div className="group-header">
                       <span className="group-header-title">{g.label}</span>

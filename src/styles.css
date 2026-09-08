@@ -62,8 +62,11 @@ body { margin: 0; }
   display: flex; align-items: center; gap: 8px;
   background: rgba(244,238,221,0.08); border: 1px solid rgba(244,238,221,0.22);
   border-radius: 999px; padding: 6px 14px 6px 8px; font-size: 13px; color: var(--washi);
+  font-family: 'Noto Sans JP', sans-serif; cursor: pointer; transition: background .12s ease, border-color .12s ease;
 }
-.summary-dot { width: 9px; height: 9px; border-radius: 50%; }
+.summary-chip:hover { background: rgba(244,238,221,0.18); }
+.summary-chip.active { background: rgba(244,238,221,0.28); border-color: rgba(244,238,221,0.55); font-weight: 700; }
+.summary-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
 
 /* ---------------------------- Toolbar ---------------------------- */
 .toolbar { max-width: 1020px; margin: 24px auto 0; padding: 0 24px; position: relative; z-index: 2; }
