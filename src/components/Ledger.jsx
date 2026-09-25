@@ -35,6 +35,8 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
     basho: "",
     cycle: 365,
     hours: 0,
+    nextLegalDate: "",
+    shakenDate: "",
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState("");
@@ -42,6 +44,7 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const isWheelLoader = form.kishu === "ホイールローダー";
 
   const handlePhotoSelected = (file) => {
     setPhotoFile(file);
@@ -68,6 +71,8 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
         basho: form.basho.trim(),
         cycle_days: Number(form.cycle) || 365,
         hours: Number(form.hours) || 0,
+        next_legal_date: form.nextLegalDate || null,
+        shaken_date: isWheelLoader ? form.shakenDate || null : null,
         photo_url,
       });
     } catch (err) {
@@ -113,6 +118,16 @@ function AddMachineModal({ onClose, onSave, existingNos, kishuOptions, makerOpti
             <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
           </Field>
         </div>
+        <div className="grid-2">
+          <Field label="次回特定自主検査予定日">
+            <input type="date" className="input" value={form.nextLegalDate} onChange={set("nextLegalDate")} />
+          </Field>
+          {isWheelLoader && (
+            <Field label="次回車検日">
+              <input type="date" className="input" value={form.shakenDate} onChange={set("shakenDate")} />
+            </Field>
+          )}
+        </div>
         <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={() => { setPhotoFile(null); setPhotoPreview(""); }} />
         {error && <p className="error-text">{error}</p>}
       </div>
@@ -137,6 +152,8 @@ function EditMachineModal({ machine, onClose, onSave, existingNos, kishuOptions,
     basho: machine.basho || "",
     cycle: machine.cycle_days,
     hours: machine.hours,
+    nextLegalDate: machine.next_legal_date || "",
+    shakenDate: machine.shaken_date || "",
   });
   const [photoFile, setPhotoFile] = useState(null);
   const [photoPreview, setPhotoPreview] = useState(machine.photo_url || "");
@@ -145,6 +162,7 @@ function EditMachineModal({ machine, onClose, onSave, existingNos, kishuOptions,
   const [saving, setSaving] = useState(false);
 
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const isWheelLoader = form.kishu === "ホイールローダー";
 
   const handlePhotoSelected = (file) => {
     setPhotoFile(file);
@@ -179,6 +197,8 @@ function EditMachineModal({ machine, onClose, onSave, existingNos, kishuOptions,
         basho: form.basho.trim(),
         cycle_days: Number(form.cycle) || 365,
         hours: Number(form.hours) || 0,
+        next_legal_date: form.nextLegalDate || null,
+        shaken_date: isWheelLoader ? form.shakenDate || null : null,
         photo_url,
       });
     } catch (err) {
@@ -223,6 +243,16 @@ function EditMachineModal({ machine, onClose, onSave, existingNos, kishuOptions,
           <Field label="現在の稼働時間（h）">
             <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
           </Field>
+        </div>
+        <div className="grid-2">
+          <Field label="次回特定自主検査予定日">
+            <input type="date" className="input" value={form.nextLegalDate} onChange={set("nextLegalDate")} />
+          </Field>
+          {isWheelLoader && (
+            <Field label="次回車検日">
+              <input type="date" className="input" value={form.shakenDate} onChange={set("shakenDate")} />
+            </Field>
+          )}
         </div>
         <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={handleRemovePhoto} />
         {error && <p className="error-text">{error}</p>}
@@ -474,10 +504,18 @@ function MachineDetail({ machine, onBack, onAddRecord, onEditRecord, onEditMachi
           <div><p className="dt">最終整備日</p><p className="dd">{latest ? fmtDate(latest.date) : "未整備"}</p></div>
           <div>
             <p className="dt">次回特定自主検査予定</p>
-            <p className="dd" style={{ color: latest && latest.legal_date && daysUntil(latest.legal_date) < 0 ? TONES.due.ink : undefined }}>
-              {latest && latest.legal_date ? fmtDate(latest.legal_date) : "―"}
+            <p className="dd" style={{ color: machine.next_legal_date && daysUntil(machine.next_legal_date) < 0 ? TONES.due.ink : undefined }}>
+              {machine.next_legal_date ? fmtDate(machine.next_legal_date) : "―"}
             </p>
           </div>
+          {machine.kishu === "ホイールローダー" && (
+            <div>
+              <p className="dt">次回車検日</p>
+              <p className="dd" style={{ color: machine.shaken_date && daysUntil(machine.shaken_date) < 0 ? TONES.due.ink : undefined }}>
+                {machine.shaken_date ? fmtDate(machine.shaken_date) : "―"}
+              </p>
+            </div>
+          )}
         </div>
       </div>
 
@@ -684,7 +722,7 @@ function AlertRow({ machine, onOpenDetail }) {
   const status = getStatus(machine);
   const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
   const latest = latestRecord(machine);
-  const diff = latest && latest.legal_date ? daysUntil(latest.legal_date) : null;
+  const diff = machine.next_legal_date ? daysUntil(machine.next_legal_date) : null;
   const reason =
     diff === null ? "" : diff < 0 ? `期限を${Math.abs(diff)}日超過しています` : `あと${diff}日です`;
 
@@ -718,7 +756,7 @@ function AlertRow({ machine, onOpenDetail }) {
       {expanded && (
         <div className="alert-row-detail">
           <p className="alert-row-reason">
-            次回特定自主検査予定日：{latest && latest.legal_date ? fmtDate(latest.legal_date) : "未設定"}
+            次回特定自主検査予定日：{machine.next_legal_date ? fmtDate(machine.next_legal_date) : "未設定"}
             {reason && <span className="overdue-flag">{reason}</span>}
           </p>
           {latest && latest.content && latest.content.length > 0 ? (
@@ -1028,12 +1066,14 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
           ? {
               ...m,
               hours: Math.max(m.hours, row.hours),
+              next_legal_date: row.legal_date || m.next_legal_date,
               maintenance_records: [...(m.maintenance_records || []), row],
             }
           : m
       )
     );
     if (row.hours > selected.hours) await api.updateMachineHours(selected.id, row.hours);
+    if (row.legal_date) await api.updateMachine(selected.id, { next_legal_date: row.legal_date });
     setShowAddRecord(false);
   };
 
@@ -1045,6 +1085,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
           ? {
               ...m,
               hours: Math.max(m.hours, updated.hours),
+              next_legal_date: updated.legal_date || m.next_legal_date,
               maintenance_records: (m.maintenance_records || []).map((r) =>
                 r.id === updated.id ? updated : r
               ),
@@ -1053,6 +1094,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
       )
     );
     if (updated.hours > selected.hours) await api.updateMachineHours(selected.id, updated.hours);
+    if (updated.legal_date) await api.updateMachine(selected.id, { next_legal_date: updated.legal_date });
     setEditingRecord(null);
   };
 

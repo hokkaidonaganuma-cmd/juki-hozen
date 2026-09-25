@@ -27,19 +27,17 @@ alter table profiles add column if not exists background_image_url text;
 
 alter table profiles enable row level security;
 
+drop policy if exists "profiles: 本人のみ参照" on profiles;
 create policy "profiles: 本人のみ参照" on profiles
   for select using (auth.uid() = id);
 
+drop policy if exists "profiles: 本人のみ更新" on profiles;
 create policy "profiles: 本人のみ更新" on profiles
   for update using (auth.uid() = id);
 
+drop policy if exists "profiles: 本人のみ作成" on profiles;
 create policy "profiles: 本人のみ作成" on profiles
   for insert with check (auth.uid() = id);
-
--- 表示設定（会社ロゴ・ヘッダー画像・背景画像）。既存プロジェクトでも安全に再実行可能
-alter table profiles add column if not exists logo_url text;
-alter table profiles add column if not exists header_image_url text;
-alter table profiles add column if not exists background_url text;
 
 -- サインアップ時に自動で profiles 行を作るトリガー
 create or replace function public.handle_new_user()
@@ -71,6 +69,8 @@ create table if not exists machines (
   cycle_days int not null default 90,
   hours numeric not null default 0,
   photo_url text,
+  next_legal_date date,
+  shaken_date date,
   created_at timestamptz not null default now(),
   unique (owner_id, kanri_no)
 );
@@ -78,9 +78,24 @@ create table if not exists machines (
 -- 既にテーブルを作成済みの場合でも安全に追加できるように（再実行OK）
 alter table machines add column if not exists chassis_no text not null default '';
 alter table machines add column if not exists photo_url text;
+alter table machines add column if not exists next_legal_date date;
+alter table machines add column if not exists shaken_date date;
+
+-- 既存の整備記録がある機械は、直近の記録の次回特定自主検査日を machines.next_legal_date に一度だけ引き継ぐ
+update machines m
+set next_legal_date = r.legal_date
+from (
+  select distinct on (machine_id) machine_id, legal_date
+  from maintenance_records
+  where legal_date is not null
+  order by machine_id, date desc
+) r
+where r.machine_id = m.id
+  and m.next_legal_date is null;
 
 alter table machines enable row level security;
 
+drop policy if exists "machines: 所有者のみ全操作" on machines;
 create policy "machines: 所有者のみ全操作" on machines
   for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
@@ -107,6 +122,7 @@ alter table maintenance_records add column if not exists photo_url text;
 
 alter table maintenance_records enable row level security;
 
+drop policy if exists "records: 所有者のみ全操作" on maintenance_records;
 create policy "records: 所有者のみ全操作" on maintenance_records
   for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
@@ -132,6 +148,7 @@ alter table master_options add constraint master_options_type_check
 
 alter table master_options enable row level security;
 
+drop policy if exists "master_options: 所有者のみ全操作" on master_options;
 create policy "master_options: 所有者のみ全操作" on master_options
   for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 
@@ -149,6 +166,7 @@ create table if not exists master_content (
 
 alter table master_content enable row level security;
 
+drop policy if exists "master_content: 所有者のみ全操作" on master_content;
 create policy "master_content: 所有者のみ全操作" on master_content
   for all using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 

@@ -42,11 +42,10 @@ export function isWithinOneMonthBefore(dateStr) {
 }
 
 export function getStatus(machine) {
-  const latest = latestRecord(machine);
-  if (!latest || !latest.legal_date) return TONES.none;
-  const diff = daysUntil(latest.legal_date);
+  if (!machine.next_legal_date) return TONES.none;
+  const diff = daysUntil(machine.next_legal_date);
   if (diff < 0) return TONES.due;
-  if (isWithinOneMonthBefore(latest.legal_date)) return TONES.soon;
+  if (isWithinOneMonthBefore(machine.next_legal_date)) return TONES.soon;
   return TONES.good;
 }
 
