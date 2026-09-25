@@ -18,6 +18,9 @@ import {
 } from "./ui";
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
+function byKanriNo(list) {
+  return [...list].sort((a, b) => a.kanri_no.localeCompare(b.kanri_no, "ja", { numeric: true }));
+}
 function addDays(dateStr, days) {
   const d = new Date(dateStr + "T00:00:00");
   d.setDate(d.getDate() + Number(days || 0));
@@ -630,9 +633,9 @@ function MachineSearch({ machines, quickMakerOptions, onSelect, onAddMachine }) 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return [];
-    return machines
-      .filter((m) => [m.kanri_no, m.kishu, m.maker, m.katashiki].join(" ").toLowerCase().includes(q))
-      .slice(0, 8);
+    return byKanriNo(
+      machines.filter((m) => [m.kanri_no, m.kishu, m.maker, m.katashiki].join(" ").toLowerCase().includes(q))
+    ).slice(0, 8);
   }, [machines, query]);
 
   const namedMakers = useMemo(
@@ -642,8 +645,8 @@ function MachineSearch({ machines, quickMakerOptions, onSelect, onAddMachine }) 
 
   const quickResults = useMemo(() => {
     if (!quickFilter) return [];
-    if (quickFilter === "その他") return machines.filter((m) => !namedMakers.includes(m.maker));
-    return machines.filter((m) => m.maker === quickFilter);
+    if (quickFilter === "その他") return byKanriNo(machines.filter((m) => !namedMakers.includes(m.maker)));
+    return byKanriNo(machines.filter((m) => m.maker === quickFilter));
   }, [machines, quickFilter, namedMakers]);
 
   const handleSelect = (id) => {
@@ -779,6 +782,7 @@ function AlertRow({ machine, onOpenDetail }) {
 
 /* ------------------------- Machine delete manager ----------------------- */
 function MachineDeleteManager({ machines, onDelete }) {
+  const sorted = byKanriNo(machines);
   return (
     <div className="master-card">
       <h3>登録済み機械の削除</h3>
@@ -786,8 +790,8 @@ function MachineDeleteManager({ machines, onDelete }) {
         削除すると、その機械の整備記録もすべて削除されます。元に戻せませんのでご注意ください。
       </p>
       <div className="master-list">
-        {machines.length === 0 && <p className="picker-hint">登録されている機械がありません。</p>}
-        {machines.map((m) => (
+        {sorted.length === 0 && <p className="picker-hint">登録されている機械がありません。</p>}
+        {sorted.map((m) => (
           <div className="master-row" key={m.id}>
             <span className="master-row-name">
               {m.kanri_no}
@@ -1025,6 +1029,10 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
       const key = Object.keys(TONES).find((k) => TONES[k] === s);
       map[key].push(m);
     });
+    map.good = byKanriNo(map.good);
+    map.soon = byKanriNo(map.soon);
+    map.due = byKanriNo(map.due);
+    map.none = byKanriNo(map.none);
     return map;
   }, [machines]);
 
