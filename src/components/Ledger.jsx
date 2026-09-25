@@ -11,6 +11,7 @@ import {
   MasterContentEditor,
   TONES,
   fmtDate,
+  fmtEraDate,
   daysUntil,
   latestRecord,
   getStatus,
@@ -19,7 +20,10 @@ import {
 
 const todayStr = () => new Date().toISOString().slice(0, 10);
 function byKanriNo(list) {
-  return [...list].sort((a, b) => a.kanri_no.localeCompare(b.kanri_no, "ja", { numeric: true }));
+  const normalize = (s) => s.replace(/[-_\s]/g, "");
+  return [...list].sort((a, b) =>
+    normalize(a.kanri_no).localeCompare(normalize(b.kanri_no), "ja", { numeric: true, sensitivity: "base" })
+  );
 }
 function addDays(dateStr, days) {
   const d = new Date(dateStr + "T00:00:00");
@@ -620,6 +624,12 @@ function SearchResultRow({ machine, onSelect }) {
       <span className="row-main">
         <span className="row-title">{machine.kishu || "（機種未登録）"}</span>
         <span className="row-sub">{[machine.maker, machine.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>
+      </span>
+      <span className="row-legal-date">
+        <span className="row-legal-date-label">次回特定自主検査</span>
+        <span className="row-legal-date-value">
+          {machine.next_legal_date ? fmtEraDate(machine.next_legal_date) : "未設定"}
+        </span>
       </span>
       <Hanko tone={toneKey} size={26} />
     </button>

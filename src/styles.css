@@ -91,6 +91,9 @@ body { margin: 0; }
 }
 .machine-search-result:hover { background: var(--washi-deep); }
 .machine-search-result .row-main { flex: 1; }
+.row-legal-date { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
+.row-legal-date-label { font-size: 10.5px; color: var(--sumi-soft); }
+.row-legal-date-value { font-size: 12.5px; font-weight: 700; color: var(--indigo-800); white-space: nowrap; }
 .machine-search-results-title { font-size: 12px; font-weight: 700; color: var(--indigo-800); margin: 2px 4px 6px; }
 .quick-maker-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .quick-maker-btn {
@@ -303,6 +306,7 @@ select.input { appearance: none; background-image: linear-gradient(45deg, transp
 @media (max-width: 680px) {
   .row { grid-template-columns: 110px 1fr; row-gap: 8px; }
   .row-place { display: none; }
+  .row-legal-date { display: none; }
   .row-status { grid-column: 2; justify-content: flex-start; }
   .detail-grid { grid-template-columns: 1fr 1fr; }
   .grid-2 { grid-template-columns: 1fr; }

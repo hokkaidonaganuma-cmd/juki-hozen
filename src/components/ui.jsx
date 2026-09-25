@@ -21,6 +21,24 @@ export function fmtDate(s) {
   return `${y}年${Number(m)}月${Number(d)}日`;
 }
 
+const ERAS = [
+  { name: "令和", start: new Date("2019-05-01T00:00:00") },
+  { name: "平成", start: new Date("1989-01-08T00:00:00") },
+  { name: "昭和", start: new Date("1926-12-25T00:00:00") },
+  { name: "大正", start: new Date("1912-07-30T00:00:00") },
+  { name: "明治", start: new Date("1868-01-25T00:00:00") },
+];
+
+export function fmtEraDate(s) {
+  if (!s) return "―";
+  const d = new Date(s + "T00:00:00");
+  const era = ERAS.find((e) => d >= e.start);
+  if (!era) return fmtDate(s);
+  const eraYear = d.getFullYear() - era.start.getFullYear() + 1;
+  const yearLabel = eraYear === 1 ? "元" : eraYear;
+  return `${era.name}${yearLabel}年${d.getMonth() + 1}月${d.getDate()}日`;
+}
+
 export function daysUntil(dateStr) {
   const today = new Date(new Date().toISOString().slice(0, 10) + "T00:00:00");
   const target = new Date(dateStr + "T00:00:00");
