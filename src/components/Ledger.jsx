@@ -25,10 +25,11 @@ function byKanriNo(list) {
     normalize(a.kanri_no).localeCompare(normalize(b.kanri_no), "ja", { numeric: true, sensitivity: "base" })
   );
 }
-function addDays(dateStr, days) {
-  const d = new Date(dateStr + "T00:00:00");
-  d.setDate(d.getDate() + Number(days || 0));
-  return d.toISOString().slice(0, 10);
+// 日付欄のどこをクリックしてもカレンダーを開く（未対応ブラウザでは通常の入力のまま）
+function openDatePicker(e) {
+  try {
+    e.currentTarget.showPicker?.();
+  } catch {}
 }
 
 /* ------------------------- Add Machine Modal ------------------------ */
@@ -280,8 +281,7 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
     date: todayStr(),
     worker: "",
     hours: machine.hours || 0,
-    nextDate: addDays(todayStr(), machine.cycle_days),
-    legalDate: addDays(todayStr(), 365),
+    legalDate: "",
   });
   const [contentItems, setContentItems] = useState([]);
   const [photoFile, setPhotoFile] = useState(null);
@@ -296,10 +296,6 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
     setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const setDateAndDefaults = (e) => {
-    const date = e.target.value;
-    setForm((f) => ({ ...f, date, nextDate: addDays(date, machine.cycle_days), legalDate: addDays(date, 365) }));
-  };
 
   const submit = async () => {
     if (!form.date) return setError("整備日を入力してください。");
@@ -316,7 +312,7 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
         worker: form.worker,
         hours: Number(form.hours) || 0,
         content: contentItems,
-        next_date: form.nextDate || null,
+        next_date: null,
         legal_date: form.legalDate || null,
         photo_url,
       });
@@ -338,7 +334,7 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
       <div className="sheet-body">
         <div className="grid-2">
           <Field label="整備日" required>
-            <input type="date" className="input" value={form.date} onChange={setDateAndDefaults} />
+            <input type="date" className="input" value={form.date} onChange={set("date")} />
           </Field>
           <Field label="実施者" required>
             <EditableSelect value={form.worker} onChange={(v) => setForm((f) => ({ ...f, worker: v }))} options={workerOptions} onAddOption={onAddWorker} placeholder="実施者を選択" />
@@ -348,13 +344,10 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
           <Field label="稼働時間（h）">
             <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
           </Field>
-          <Field label="次回点検予定日">
-            <input type="date" className="input" value={form.nextDate} onChange={set("nextDate")} />
+          <Field label="次回特定自主検査予定日">
+            <input type="date" className="input" value={form.legalDate} onChange={set("legalDate")} onClick={openDatePicker} />
           </Field>
         </div>
-        <Field label="次回特定自主検査予定日">
-          <input type="date" className="input" value={form.legalDate} onChange={set("legalDate")} />
-        </Field>
         <Field label="整備内容" required>
           <ContentPicker options={contentOptions} onAddOption={onAddContentOption} selected={contentItems} onChange={setContentItems} />
         </Field>
@@ -377,7 +370,6 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
     date: record.date,
     worker: record.worker,
     hours: record.hours,
-    nextDate: record.next_date || "",
     legalDate: record.legal_date || "",
   });
   const [contentItems, setContentItems] = useState(record.content || []);
@@ -416,7 +408,7 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
         worker: form.worker,
         hours: Number(form.hours) || 0,
         content: contentItems,
-        next_date: form.nextDate || null,
+        next_date: record.next_date || null,
         legal_date: form.legalDate || null,
         photo_url,
       });
@@ -448,13 +440,10 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
           <Field label="稼働時間（h）">
             <input type="number" min="0" className="input" value={form.hours} onChange={set("hours")} />
           </Field>
-          <Field label="次回点検予定日">
-            <input type="date" className="input" value={form.nextDate} onChange={set("nextDate")} />
+          <Field label="次回特定自主検査予定日">
+            <input type="date" className="input" value={form.legalDate} onChange={set("legalDate")} onClick={openDatePicker} />
           </Field>
         </div>
-        <Field label="次回特定自主検査予定日">
-          <input type="date" className="input" value={form.legalDate} onChange={set("legalDate")} />
-        </Field>
         <Field label="整備内容" required>
           <ContentPicker options={contentOptions} onAddOption={onAddContentOption} selected={contentItems} onChange={setContentItems} />
         </Field>
