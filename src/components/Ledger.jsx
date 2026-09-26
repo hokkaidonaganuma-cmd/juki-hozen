@@ -615,6 +615,10 @@ function SearchResultRow({ machine, onSelect }) {
         <span className="row-sub">{[machine.maker, machine.katashiki].filter(Boolean).join(" ／ ") || "―"}</span>
       </span>
       <span className="row-legal-date">
+        <span className="row-legal-date-label">アワーメーター</span>
+        <span className="row-legal-date-value">{Number(machine.hours || 0).toLocaleString()}h</span>
+      </span>
+      <span className="row-legal-date">
         <span className="row-legal-date-label">次回特定自主検査</span>
         <span className="row-legal-date-value">
           {machine.next_legal_date ? fmtEraDate(machine.next_legal_date) : "未設定"}
