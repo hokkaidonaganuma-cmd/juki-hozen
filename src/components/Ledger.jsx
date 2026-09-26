@@ -602,8 +602,14 @@ function MachineRow({ machine, onOpen }) {
 function SearchResultRow({ machine, onSelect }) {
   const status = getStatus(machine);
   const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
+  const legalExpired = machine.next_legal_date && daysUntil(machine.next_legal_date) < 0;
+  const shakenExpired = machine.shaken_date && daysUntil(machine.shaken_date) < 0;
   return (
-    <button type="button" className="machine-search-result" onClick={() => onSelect(machine.id)}>
+    <button
+      type="button"
+      className={"machine-search-result" + (legalExpired || shakenExpired ? " expired" : "")}
+      onClick={() => onSelect(machine.id)}
+    >
       <span className="row-id-group">
         <span className="row-photo-thumb">
           {machine.photo_url ? <img src={machine.photo_url} alt="" /> : <span className="row-photo-placeholder">機</span>}
@@ -618,9 +624,21 @@ function SearchResultRow({ machine, onSelect }) {
         <span className="row-legal-date-label">アワーメーター</span>
         <span className="row-legal-date-value">{Number(machine.hours || 0).toLocaleString()}h</span>
       </span>
+      {machine.shaken_date && (
+        <span className="row-legal-date">
+          <span className="row-legal-date-label">
+            車検満了日{shakenExpired && <span className="expired-flag">期限切れ</span>}
+          </span>
+          <span className={"row-legal-date-value" + (shakenExpired ? " is-expired" : "")}>
+            {fmtEraDate(machine.shaken_date)}
+          </span>
+        </span>
+      )}
       <span className="row-legal-date">
-        <span className="row-legal-date-label">次回特定自主検査</span>
-        <span className="row-legal-date-value">
+        <span className="row-legal-date-label">
+          次回特定自主検査{legalExpired && <span className="expired-flag">期限切れ</span>}
+        </span>
+        <span className={"row-legal-date-value" + (legalExpired ? " is-expired" : "")}>
           {machine.next_legal_date ? fmtEraDate(machine.next_legal_date) : "未設定"}
         </span>
       </span>
@@ -629,9 +647,7 @@ function SearchResultRow({ machine, onSelect }) {
   );
 }
 
-function MachineSearch({ machines, quickMakerOptions, onSelect, onAddMachine }) {
-  const [query, setQuery] = useState("");
-  const [quickFilter, setQuickFilter] = useState(null);
+function MachineSearch({ machines, quickMakerOptions, onSelect, onAddMachine, query, setQuery, quickFilter, setQuickFilter }) {
 
   const results = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -973,6 +989,16 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
   const [editingRecord, setEditingRecord] = useState(null);
   const [page, setPage] = useState("list");
   const [statusFilter, setStatusFilter] = useState(null); // null | "good" | "soon" | "due" | "none"
+  const [searchQuery, setSearchQuery] = useState("");
+  const [quickFilter, setQuickFilter] = useState(null);
+
+  // ステータスチップを押したら、メーカー絞り込み・検索・詳細表示を解除してステータス別一覧を出す
+  const toggleStatusFilter = (key) => {
+    setStatusFilter((v) => (v === key ? null : key));
+    setQuickFilter(null);
+    setSearchQuery("");
+    setSelectedId(null);
+  };
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -1206,28 +1232,28 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
             <button
               type="button"
               className={"summary-chip" + (statusFilter === "good" ? " active" : "")}
-              onClick={() => setStatusFilter((v) => (v === "good" ? null : "good"))}
+              onClick={() => toggleStatusFilter("good")}
             >
               <span className="summary-dot" style={{ background: TONES.good.ink }} />良好 {summary.good}
             </button>
             <button
               type="button"
               className={"summary-chip" + (statusFilter === "soon" ? " active" : "")}
-              onClick={() => setStatusFilter((v) => (v === "soon" ? null : "soon"))}
+              onClick={() => toggleStatusFilter("soon")}
             >
               <span className="summary-dot" style={{ background: TONES.soon.ink }} />点検間近 {summary.soon}
             </button>
             <button
               type="button"
               className={"summary-chip" + (statusFilter === "due" ? " active" : "")}
-              onClick={() => setStatusFilter((v) => (v === "due" ? null : "due"))}
+              onClick={() => toggleStatusFilter("due")}
             >
               <span className="summary-dot" style={{ background: TONES.due.ink }} />要点検 {summary.due}
             </button>
             <button
               type="button"
               className={"summary-chip" + (statusFilter === "none" ? " active" : "")}
-              onClick={() => setStatusFilter((v) => (v === "none" ? null : "none"))}
+              onClick={() => toggleStatusFilter("none")}
             >
               <span className="summary-dot" style={{ background: TONES.none.ink }} />未点検 {summary.none}
             </button>
@@ -1240,6 +1266,10 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
                 quickMakerOptions={quickMakerOptions}
                 onSelect={setSelectedId}
                 onAddMachine={() => setShowAddMachine(true)}
+                query={searchQuery}
+                setQuery={setSearchQuery}
+                quickFilter={quickFilter}
+                setQuickFilter={setQuickFilter}
               />
             </div>
           </div>

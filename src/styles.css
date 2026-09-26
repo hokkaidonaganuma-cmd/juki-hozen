@@ -96,6 +96,14 @@ body { margin: 0; }
 .row-legal-date { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; flex-shrink: 0; }
 .row-legal-date-label { font-size: 10.5px; color: var(--sumi-soft); }
 .row-legal-date-value { font-size: 12.5px; font-weight: 700; color: var(--indigo-800); white-space: nowrap; }
+/* 車検・特定自主検査の期限切れ */
+.machine-search-result.expired { background: #fbeceb; box-shadow: inset 4px 0 0 #a5312b; }
+.machine-search-result.expired:hover { background: #f6dedc; }
+.row-legal-date-value.is-expired { color: #a5312b; }
+.expired-flag {
+  display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 4px;
+  background: #a5312b; color: #fff; font-size: 9.5px; font-weight: 700; line-height: 15px; vertical-align: 1px;
+}
 .machine-search-results-title { font-size: 12px; font-weight: 700; color: var(--indigo-800); margin: 2px 4px 6px; }
 .quick-maker-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 .quick-maker-btn {
