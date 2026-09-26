@@ -705,7 +705,7 @@ function MachineSearch({ machines, quickMakerOptions, onSelect, onAddMachine }) 
             ))}
           </div>
           {quickFilter && (
-            <div className="machine-search-results">
+            <div className="machine-search-results machine-search-results-all">
               <p className="machine-search-results-title">
                 {quickFilter}の自社機械（{quickResults.length}台）
               </p>
