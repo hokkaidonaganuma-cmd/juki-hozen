@@ -115,10 +115,12 @@ create table if not exists maintenance_records (
   legal_date date,
   content jsonb not null default '[]'::jsonb, -- [{name, unit, amount}]
   photo_url text,
+  memo text not null default '',
   created_at timestamptz not null default now()
 );
 
 alter table maintenance_records add column if not exists photo_url text;
+alter table maintenance_records add column if not exists memo text not null default '';
 
 alter table maintenance_records enable row level security;
 

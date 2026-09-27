@@ -282,6 +282,7 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
     worker: "",
     hours: machine.hours || 0,
     legalDate: "",
+    memo: "",
   });
   const [contentItems, setContentItems] = useState([]);
   const [photoFile, setPhotoFile] = useState(null);
@@ -314,6 +315,7 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
         content: contentItems,
         next_date: null,
         legal_date: form.legalDate || null,
+        memo: form.memo.trim(),
         photo_url,
       });
     } catch (err) {
@@ -351,7 +353,12 @@ function AddRecordModal({ machine, onClose, onSave, contentOptions, onAddContent
         <Field label="整備内容" required>
           <ContentPicker options={contentOptions} onAddOption={onAddContentOption} selected={contentItems} onChange={setContentItems} />
         </Field>
-        <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={() => { setPhotoFile(null); setPhotoPreview(""); }} />
+        <div className="grid-2">
+          <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={() => { setPhotoFile(null); setPhotoPreview(""); }} />
+          <Field label="メモ">
+            <textarea className="input memo-input" rows={4} value={form.memo} onChange={set("memo")} placeholder="気づいた点・申し送りなど" />
+          </Field>
+        </div>
         {error && <p className="error-text">{error}</p>}
       </div>
       <div className="sheet-foot">
@@ -371,6 +378,7 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
     worker: record.worker,
     hours: record.hours,
     legalDate: record.legal_date || "",
+    memo: record.memo || "",
   });
   const [contentItems, setContentItems] = useState(record.content || []);
   const [photoFile, setPhotoFile] = useState(null);
@@ -410,6 +418,7 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
         content: contentItems,
         next_date: record.next_date || null,
         legal_date: form.legalDate || null,
+        memo: form.memo.trim(),
         photo_url,
       });
     } catch (err) {
@@ -447,7 +456,12 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
         <Field label="整備内容" required>
           <ContentPicker options={contentOptions} onAddOption={onAddContentOption} selected={contentItems} onChange={setContentItems} />
         </Field>
-        <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={handleRemovePhoto} />
+        <div className="grid-2">
+          <PhotoUploadField label="写真" previewUrl={photoPreview} onFileSelected={handlePhotoSelected} onRemove={handleRemovePhoto} />
+          <Field label="メモ">
+            <textarea className="input memo-input" rows={4} value={form.memo} onChange={set("memo")} placeholder="気づいた点・申し送りなど" />
+          </Field>
+        </div>
         {error && <p className="error-text">{error}</p>}
       </div>
       <div className="sheet-foot">
@@ -534,6 +548,7 @@ function MachineDetail({ machine, onBack, onAddRecord, onEditRecord, onEditMachi
               <div className="record-row" key={r.id}>
                 <div className="record-row-head">
                   <div className="record-date">{fmtDate(r.date)}</div>
+                  {r.memo && <p className="record-memo">{r.memo}</p>}
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEditRecord(r)}>
                     編集
                   </button>

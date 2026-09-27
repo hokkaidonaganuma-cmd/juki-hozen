@@ -217,6 +217,14 @@ body { margin: 0; }
 .record-row { display: flex; flex-direction: column; gap: 8px; background: #fffdf7; border: 1px solid var(--washi-line); border-radius: 12px; padding: 14px 16px; }
 .record-row-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .record-date { font-family: 'Shippori Mincho', serif; font-weight: 700; font-size: 13.5px; color: var(--indigo-800); }
+/* 整備記録のメモ（日付と編集ボタンの間） */
+.record-memo {
+  flex: 1; min-width: 0; margin: 0 4px; padding: 6px 10px; border-radius: 8px;
+  background: var(--washi); border: 1px dashed var(--washi-line);
+  font-size: 12.5px; color: var(--sumi); white-space: pre-wrap; overflow-wrap: anywhere;
+}
+.record-row-head .btn { margin-left: auto; }
+.memo-input { resize: vertical; min-height: 96px; line-height: 1.6; }
 .record-photo-link { display: inline-block; margin-bottom: 4px; }
 .record-photo-thumb { width: 64px; height: 64px; border-radius: 8px; object-fit: cover; border: 1px solid var(--washi-line); display: block; }
 .record-meta { margin: 3px 0 0; font-size: 12.5px; color: var(--sumi-soft); }
