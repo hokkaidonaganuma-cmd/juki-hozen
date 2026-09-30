@@ -1018,17 +1018,34 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
   const loadAll = useCallback(async () => {
     setLoading(true);
     setLoadError("");
+    const MAX_ATTEMPTS = 4;
     try {
-      const [ms, opts, contents] = await Promise.all([
-        api.fetchMachines(),
-        api.fetchMasterOptions(),
-        api.fetchMasterContent(),
-      ]);
-      setMachines(ms);
-      setMasterOptions(opts);
-      setMasterContent(contents);
+      for (let attempt = 1; ; attempt++) {
+        try {
+          const [ms, opts, contents] = await Promise.all([
+            api.fetchMachines(),
+            api.fetchMasterOptions(),
+            api.fetchMasterContent(),
+          ]);
+          setMachines(ms);
+          setMasterOptions(opts);
+          setMasterContent(contents);
+          return;
+        } catch (err) {
+          // 時計のずれによる一時的なトークンエラーは、少し待ってトークンを更新し自動でやり直す
+          if (!api.isJwtTimeError(err) || attempt >= MAX_ATTEMPTS) throw err;
+          await new Promise((r) => setTimeout(r, attempt * 2000));
+          try {
+            await api.refreshSession();
+          } catch {}
+        }
+      }
     } catch (err) {
-      setLoadError(err.message || "データの読み込みに失敗しました。");
+      setLoadError(
+        api.isJwtTimeError(err)
+          ? "ログイン情報の確認に失敗しました。端末の日付と時刻が「自動設定」になっているか確認してから、再読み込みしてください。"
+          : err.message || "データの読み込みに失敗しました。"
+      );
     } finally {
       setLoading(false);
     }

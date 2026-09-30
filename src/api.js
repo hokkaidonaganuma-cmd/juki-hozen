@@ -2,6 +2,16 @@ import { supabase } from "./supabaseClient";
 
 /* ---------------------------- Auth ---------------------------- */
 
+// 端末とサーバーの時計のずれなどで起きる一時的なトークンのエラーか
+export function isJwtTimeError(err) {
+  const msg = String((err && err.message) || "");
+  return /JWT issued at future|JWT expired/i.test(msg);
+}
+
+export async function refreshSession() {
+  await supabase.auth.refreshSession();
+}
+
 export async function signUp({ email, password, displayName }) {
   const { data, error } = await supabase.auth.signUp({
     email,
