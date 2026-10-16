@@ -1,0 +1,142 @@
+/* 特定自主検査 記録表モジュール（.tk- / .ps- 接頭辞で既存アプリと衝突しない） */
+.tk-app, .tk-print-wrap {
+  --tk-bg: #f4f5f2; --tk-card: #ffffff; --tk-ink: #1d2320; --tk-muted: #66706a; --tk-line: #d9ddd8;
+  --tk-accent: #1f5f3f; --tk-accent-ink: #fff; --tk-red: #b3261e; --tk-amber: #9a6200; --tk-green: #1f6b3e;
+  --tk-ng-bg: #fdecea; --tk-chip: #eef1ec;
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", "Yu Gothic UI", sans-serif;
+  color: var(--tk-ink); background: var(--tk-bg); min-height: 100vh;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .tk-app, :root:not([data-theme="light"]) .tk-print-wrap {
+    --tk-bg: #141816; --tk-card: #1d2320; --tk-ink: #e7ebe8; --tk-muted: #9aa49e; --tk-line: #333b37;
+    --tk-accent: #6cc392; --tk-accent-ink: #0d1a12; --tk-red: #ff8a80; --tk-amber: #f0b44c; --tk-green: #7fd3a1;
+    --tk-ng-bg: #3a1f1d; --tk-chip: #262e2a;
+  }
+}
+:root[data-theme="dark"] .tk-app, :root[data-theme="dark"] .tk-print-wrap { color-scheme: dark;
+  --tk-bg: #141816; --tk-card: #1d2320; --tk-ink: #e7ebe8; --tk-muted: #9aa49e; --tk-line: #333b37;
+  --tk-accent: #6cc392; --tk-accent-ink: #0d1a12; --tk-red: #ff8a80; --tk-amber: #f0b44c; --tk-green: #7fd3a1;
+  --tk-ng-bg: #3a1f1d; --tk-chip: #262e2a;
+}
+.tk-app * , .tk-print-wrap * { box-sizing: border-box; }
+.tk-app { max-width: 920px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 96px; }
+.tk-app main { display: grid; gap: 12px; }
+.tk-header { display: flex; align-items: center; gap: 8px; padding: 14px 0; position: sticky; top: env(safe-area-inset-top, 0px); background: var(--tk-bg); z-index: 5; }
+.tk-title { all: unset; cursor: pointer; font-weight: 700; font-size: 18px; letter-spacing: .02em; }
+.tk-spacer { flex: 1; }
+.tk-flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.tk-muted { color: var(--tk-muted); font-size: 13px; margin: 4px 0; }
+.tk-muted.small { font-size: 12px; }
+.tk-card { background: var(--tk-card); border: 1px solid var(--tk-line); border-radius: 10px; padding: 16px; margin-bottom: 12px; }
+.tk-card h2 { font-size: 17px; margin: 0 0 12px; }
+.tk-card h3 { font-size: 15px; margin: 0 0 8px; }
+.tk-btn { font: inherit; font-size: 14px; padding: 9px 14px; border-radius: 8px; border: 1px solid var(--tk-line); background: var(--tk-card); color: var(--tk-ink); cursor: pointer; white-space: nowrap; }
+.tk-btn:hover:not(:disabled) { border-color: var(--tk-accent); }
+.tk-btn:disabled { opacity: .45; cursor: default; }
+.tk-btn.primary { background: var(--tk-accent); color: var(--tk-accent-ink); border-color: var(--tk-accent); font-weight: 600; }
+.tk-btn.danger { color: var(--tk-red); border-color: currentColor; }
+.tk-btn.small { padding: 6px 10px; font-size: 13px; }
+.tk-search { flex: 1; min-width: 160px; }
+.tk-app input, .tk-app select, .tk-app textarea { font: inherit; font-size: 15px; padding: 8px 10px; border: 1px solid var(--tk-line); border-radius: 8px; background: var(--tk-card); color: var(--tk-ink); width: 100%; }
+.tk-app textarea { resize: vertical; }
+.tk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px 12px; }
+.tk-field { display: grid; gap: 4px; font-size: 13px; color: var(--tk-muted); margin-bottom: 4px; }
+.tk-field.wide { margin-bottom: 12px; }
+.tk-field small { font-size: 12px; }
+.tk-actions { display: flex; gap: 8px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+.tk-actions.sticky { position: sticky; bottom: 0; background: var(--tk-bg); padding: 12px 0; border-top: 1px solid var(--tk-line); }
+.tk-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.tk-item { display: flex; gap: 12px; align-items: center; background: var(--tk-card); border: 1px solid var(--tk-line); border-radius: 10px; padding: 12px 14px; flex-wrap: wrap; }
+.tk-item-main { flex: 1; min-width: 200px; cursor: pointer; display: grid; gap: 2px; font-size: 14px; }
+.tk-item-top { display: flex; gap: 10px; align-items: center; font-size: 16px; }
+.tk-item-btns { display: flex; gap: 8px; }
+.tk-badge { font-size: 12px; padding: 2px 8px; border-radius: 99px; background: var(--tk-chip); font-weight: 600; }
+.tk-badge.red { color: var(--tk-red); } .tk-badge.amber { color: var(--tk-amber); } .tk-badge.green { color: var(--tk-green); } .tk-badge.gray { color: var(--tk-muted); }
+.tk-error { background: var(--tk-ng-bg); color: var(--tk-red); padding: 10px 12px; border-radius: 8px; margin-bottom: 12px; cursor: pointer; }
+.tk-warn { color: var(--tk-red); font-size: 13px; }
+.tk-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; position: sticky; top: 52px; z-index: 4; background: var(--tk-bg); padding: 8px 0; }
+.tk-progress { font-size: 14px; font-weight: 600; margin-right: auto; }
+.tk-ng { color: var(--tk-red); }
+.tk-rows h3 { margin: 18px 0 6px; padding-bottom: 4px; border-bottom: 2px solid var(--tk-accent); }
+.tk-rows h3:first-child { margin-top: 0; }
+.tk-row { display: grid; grid-template-columns: minmax(150px, 1.2fr) auto minmax(120px, 1fr); gap: 8px; align-items: center; padding: 6px 4px; border-bottom: 1px solid var(--tk-line); }
+.tk-row.ng { background: var(--tk-ng-bg); }
+.tk-row-label { display: grid; font-size: 14px; line-height: 1.35; }
+.tk-row-label span { color: var(--tk-muted); font-size: 13px; }
+.tk-dim { color: var(--tk-muted); font-weight: 400; }
+.tk-marks { display: flex; gap: 3px; flex-wrap: wrap; }
+.tk-mark { font: inherit; width: 34px; height: 34px; border-radius: 7px; border: 1px solid var(--tk-line); background: var(--tk-card); color: var(--tk-ink); cursor: pointer; font-weight: 700; font-size: 15px; padding: 0; }
+.tk-mark.on { background: var(--tk-accent); color: var(--tk-accent-ink); border-color: var(--tk-accent); }
+.tk-mark.bad.on { background: var(--tk-red); border-color: var(--tk-red); color: #fff; }
+.tk-app .tk-note { font-size: 14px; padding: 6px 8px; }
+.tk-meas { display: grid; gap: 6px; }
+.tk-meas-row { display: grid; grid-template-columns: 1fr 110px 110px; gap: 8px; align-items: center; font-size: 14px; }
+@media (max-width: 640px) {
+  .tk-row { grid-template-columns: 1fr; gap: 6px; }
+  .tk-mark { width: 38px; height: 38px; }
+  .tk-meas-row { grid-template-columns: 1fr 1fr; }
+  .tk-meas-row span { grid-column: 1 / -1; }
+  .tk-item-btns { width: 100%; } .tk-item-btns .tk-btn { flex: 1; }
+  .tk-toolbar { top: 50px; }
+}
+
+/* ---------- 印刷用 記録表（A4縦） ---------- */
+.tk-print-bar { display: flex; gap: 12px; align-items: center; padding: 12px 16px; flex-wrap: wrap; position: sticky; top: 0; background: var(--tk-bg); z-index: 3; }
+.tk-print-wrap { padding-bottom: 24px; overflow-x: auto; }
+.ps-page { width: 210mm; min-height: 297mm; margin: 0 auto; padding: 8mm 8mm; background: #fff; color: #000; font-size: 7.4pt; line-height: 1.25; box-shadow: 0 1px 6px rgba(0,0,0,.2); font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif; }
+.ps-page table { border-collapse: collapse; width: 100%; }
+.ps-page th, .ps-page td { border: 0.6pt solid #000; padding: 1.2pt 2.5pt; vertical-align: middle; }
+.ps-page th { background: #eee; font-weight: 600; }
+.ps-title { text-align: center; margin-bottom: 2.5mm; }
+.ps-title h1 { font-size: 15pt; margin: 0; letter-spacing: .4em; }
+.ps-sub { font-size: 9.5pt; margin-top: 1mm; }
+.ps-sub span { font-size: 7pt; }
+.ps-head { margin-bottom: 2.5mm; }
+.ps-head th { width: 12%; white-space: nowrap; text-align: left; }
+.ps-head td { height: 5.2mm; }
+.ps-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; align-items: start; }
+.ps-items th { font-size: 7pt; }
+.ps-items td { height: 4mm; }
+.ps-sec td { background: #e4e4e4; font-weight: 700; }
+.ps-mark { text-align: center; font-weight: 700; font-size: 8.5pt; }
+.ps-note { font-size: 6.6pt; }
+.ps-bottom { display: grid; grid-template-columns: 1fr 1fr; gap: 2mm; margin-top: 2.5mm; align-items: start; }
+.ps-meas td { height: 4.6mm; }
+.ps-meas td:nth-child(2), .ps-meas td:nth-child(3) { width: 18%; text-align: center; }
+.ps-unit { font-size: 6.4pt; }
+.ps-right { display: grid; gap: 2mm; }
+.ps-repair-body { height: 22mm; vertical-align: top !important; white-space: pre-wrap; font-size: 7pt; }
+.ps-sign th { width: 33.3%; }
+.ps-sign td { height: 13mm; }
+.ps-judge { text-align: center; font-size: 11pt; font-weight: 700; }
+.ps-legend { margin-top: 2mm; font-size: 6.8pt; display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+
+@page { size: A4 portrait; margin: 0; }
+@media print {
+  .no-print { display: none !important; }
+  html, body { background: #fff !important; }
+  .tk-print-wrap { background: #fff; padding: 0; min-height: 0; overflow: visible; }
+  .ps-page { box-shadow: none; margin: 0; }
+  .ps-items tr, .ps-meas tr { break-inside: avoid; }
+}
+.ps-doc { display: grid; gap: 8mm; justify-content: center; }
+.ps-page { height: 297mm; overflow: hidden; position: relative; }
+.ps-cont { font-size: 8pt; font-weight: 700; margin-bottom: 2mm; border-bottom: 0.8pt solid #000; padding-bottom: 1mm; }
+.ps-pageno { position: absolute; right: 8mm; bottom: 4mm; font-size: 6.5pt; color: #333; }
+@media print { .ps-doc { display: block; } .ps-page { break-after: page; } .ps-page:last-child { break-after: auto; } }
+.ps-measure { position: absolute; left: -10000px; top: 0; visibility: hidden; height: auto !important; overflow: visible; }
+@media (max-width: 640px) {
+  .tk-marks { display: grid; grid-template-columns: repeat(8, 1fr); }
+  .tk-mark { width: auto; height: 38px; }
+  .tk-row-label { display: flex; gap: 6px; flex-wrap: wrap; align-items: baseline; }
+  .tk-toolbar .tk-btn { padding: 6px 9px; font-size: 13px; }
+  .tk-progress { width: 100%; }
+}
+
+/* 保全台帳に組み込んだときの印刷：台帳のヘッダーや余白を消して用紙の左上に合わせる */
+.tokken-wrap .tk-app { border-radius: 14px; }
+@media print {
+  header.header { display: none !important; }
+  .app { background: #fff !important; min-height: 0 !important; }
+  .tokken-wrap, .content.tokken-wrap { max-width: none !important; margin: 0 !important; padding: 0 !important; }
+}

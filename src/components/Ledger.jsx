@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import * as api from "../api";
+import { supabase } from "../supabaseClient";
+import TokkenApp from "../tokken/TokkenApp.jsx";
+import { createSupabaseStore } from "../tokken/storage.js";
+
+// 特定自主検査記録表（Supabaseに保存）
+const tokkenStore = createSupabaseStore(supabase);
 import {
   Hanko,
   Overlay,
@@ -1229,6 +1235,12 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
             <span className="user-tag">{profile ? profile.display_name : ""} さん</span>
             <button
               className="master-nav-btn"
+              onClick={() => { setSelectedId(null); setPage(page === "tokken" ? "list" : "tokken"); }}
+            >
+              {page === "tokken" ? "← 一覧へ" : "📋 特定自主検査"}
+            </button>
+            <button
+              className="master-nav-btn"
               onClick={() => { setSelectedId(null); setPage(page === "master" ? "list" : "master"); }}
             >
               {page === "master" ? "← 一覧へ" : "⚙ マスタ編集"}
@@ -1238,7 +1250,11 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
         </div>
       </header>
 
-      {page === "master" ? (
+      {page === "tokken" ? (
+        <div className="content content-top tokken-wrap">
+          <TokkenApp store={tokkenStore} ledgerMachines={machines} />
+        </div>
+      ) : page === "master" ? (
         <div className="content content-top">
           <MasterPage
             onBack={() => setPage("list")}
