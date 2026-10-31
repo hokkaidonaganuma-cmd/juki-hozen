@@ -481,7 +481,7 @@ function EditRecordModal({ machine, record, onClose, onSave, contentOptions, onA
 }
 
 /* ------------------------------ Detail ------------------------------ */
-function MachineDetail({ machine, onBack, onAddRecord, onEditRecord, onEditMachine }) {
+function MachineDetail({ machine, onBack, onAddRecord, onEditRecord, onDeleteRecord, onEditMachine }) {
   const status = getStatus(machine);
   const toneKey = Object.keys(TONES).find((k) => TONES[k] === status);
   const latest = latestRecord(machine);
@@ -555,9 +555,22 @@ function MachineDetail({ machine, onBack, onAddRecord, onEditRecord, onEditMachi
                 <div className="record-row-head">
                   <div className="record-date">{fmtDate(r.date)}</div>
                   {r.memo && <p className="record-memo">{r.memo}</p>}
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEditRecord(r)}>
-                    編集
-                  </button>
+                  <div className="record-row-actions">
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => onEditRecord(r)}>
+                      編集
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-sm btn-danger"
+                      onClick={() => {
+                        if (window.confirm(`${fmtDate(r.date)}の整備記録を削除しますか？\n元に戻せません。`)) {
+                          onDeleteRecord(r);
+                        }
+                      }}
+                    >
+                      削除
+                    </button>
+                  </div>
                 </div>
                 <div className="record-main">
                   {r.photo_url && (
@@ -1173,6 +1186,22 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
     setEditingRecord(null);
   };
 
+  const handleDeleteRecord = async (record) => {
+    try {
+      await api.deleteRecord(record.id);
+    } catch (err) {
+      window.alert(err.message || "削除に失敗しました。");
+      return;
+    }
+    setMachines((prev) =>
+      prev.map((m) =>
+        m.id === selected.id
+          ? { ...m, maintenance_records: (m.maintenance_records || []).filter((r) => r.id !== record.id) }
+          : m
+      )
+    );
+  };
+
   const handleDeleteMachine = async (id) => {
     await api.deleteMachine(id);
     setMachines((prev) => prev.filter((m) => m.id !== id));
@@ -1329,6 +1358,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
                 onBack={() => setSelectedId(null)}
                 onAddRecord={() => setShowAddRecord(true)}
                 onEditRecord={(r) => setEditingRecord(r)}
+                onDeleteRecord={handleDeleteRecord}
                 onEditMachine={() => setShowEditMachine(true)}
               />
             ) : machines.length === 0 ? (

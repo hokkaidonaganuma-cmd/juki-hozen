@@ -129,6 +129,11 @@ export async function addRecord(record) {
   return data;
 }
 
+export async function deleteRecord(id) {
+  const { error } = await supabase.from("maintenance_records").delete().eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateRecord(id, payload) {
   const { data, error } = await supabase
     .from("maintenance_records")
