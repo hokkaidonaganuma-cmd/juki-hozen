@@ -965,6 +965,196 @@ function BrandingSettings({ profile, onUpdate }) {
   );
 }
 
+/* ------------------------------ Backup card --------------------------- */
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function backupStamp() {
+  const d = new Date();
+  const p = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}`;
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
+}
+
+function csvCell(v) {
+  const s = v === null || v === undefined ? "" : String(v);
+  return `"${s.replace(/"/g, '""')}"`;
+}
+
+function BackupCard({ profile }) {
+  const [includePhotos, setIncludePhotos] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+
+  const loadAll = async () => {
+    const [machines, options, contents] = await Promise.all([
+      api.fetchMachines(),
+      api.fetchMasterOptions(),
+      api.fetchMasterContent(),
+    ]);
+    return { machines, options, contents };
+  };
+
+  const handleJson = async () => {
+    setBusy(true);
+    setError("");
+    setMessage("データを読み込み中…");
+    try {
+      const { machines, options, contents } = await loadAll();
+      const sorted = byKanriNo(machines);
+      const backup = {
+        app: "juki-hozen-daicho",
+        version: 1,
+        exported_at: new Date().toISOString(),
+        includes_photo_data: includePhotos,
+        profile: profile
+          ? {
+              display_name: profile.display_name,
+              app_title: profile.app_title,
+              logo_url: profile.logo_url,
+              header_image_url: profile.header_image_url,
+              background_image_url: profile.background_image_url,
+            }
+          : null,
+        machines: sorted,
+        master_options: options,
+        master_content: contents,
+      };
+
+      if (includePhotos) {
+        const urls = new Set();
+        sorted.forEach((m) => {
+          if (m.photo_url) urls.add(m.photo_url);
+          (m.maintenance_records || []).forEach((r) => r.photo_url && urls.add(r.photo_url));
+        });
+        if (profile) {
+          [profile.logo_url, profile.header_image_url, profile.background_image_url].forEach((u) => u && urls.add(u));
+        }
+        const list = Array.from(urls);
+        const photos = {};
+        const failed = [];
+        for (let i = 0; i < list.length; i++) {
+          setMessage(`写真を取得中… ${i + 1} / ${list.length}`);
+          try {
+            const res = await fetch(list[i]);
+            if (!res.ok) throw new Error(String(res.status));
+            photos[list[i]] = await blobToDataUrl(await res.blob());
+          } catch (e) {
+            failed.push(list[i]);
+          }
+        }
+        backup.photos = photos;
+        backup.photos_failed = failed;
+      }
+
+      downloadFile(`juki-hozen-backup-${backupStamp()}.json`, JSON.stringify(backup, null, 2), "application/json");
+      const recordCount = sorted.reduce((n, m) => n + (m.maintenance_records || []).length, 0);
+      setMessage(
+        `保存しました：機械${sorted.length}台・整備記録${recordCount}件` +
+          (includePhotos ? `・写真${Object.keys(backup.photos).length}枚` : "") +
+          "（「ダウンロード」フォルダを確認してください）"
+      );
+    } catch (err) {
+      setMessage("");
+      setError(err.message || "バックアップに失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleCsv = async () => {
+    setBusy(true);
+    setError("");
+    setMessage("データを読み込み中…");
+    try {
+      const { machines } = await loadAll();
+      const header = [
+        "管理番号", "機種", "メーカー", "型式", "車台番号", "配置場所", "点検周期(日)", "稼働時間(h)",
+        "次回特定自主検査予定日", "次回車検日", "整備日", "実施者", "整備時の稼働時間(h)", "整備内容", "メモ",
+        "次回点検予定日", "記録の次回特定自主検査予定日", "整備写真URL", "機械写真URL",
+      ];
+      const rows = [header];
+      byKanriNo(machines).forEach((m) => {
+        const base = [
+          m.kanri_no, m.kishu, m.maker, m.katashiki, m.chassis_no, m.basho, m.cycle_days, m.hours,
+          m.next_legal_date, m.shaken_date,
+        ];
+        const records = [...(m.maintenance_records || [])].sort((a, b) => (a.date < b.date ? 1 : -1));
+        if (records.length === 0) {
+          rows.push([...base, "", "", "", "", "", "", "", "", m.photo_url]);
+        } else {
+          records.forEach((r) => {
+            rows.push([
+              ...base,
+              r.date,
+              r.worker,
+              r.hours,
+              (r.content || []).map(formatContentItem).join("／"),
+              r.memo,
+              r.next_date,
+              r.legal_date,
+              r.photo_url,
+              m.photo_url,
+            ]);
+          });
+        }
+      });
+      const csv = "\uFEFF" + rows.map((row) => row.map(csvCell).join(",")).join("\r\n");
+      downloadFile(`juki-hozen-list-${backupStamp()}.csv`, csv, "text/csv;charset=utf-8");
+      setMessage(`保存しました：${rows.length - 1}行（「ダウンロード」フォルダを確認してください）`);
+    } catch (err) {
+      setMessage("");
+      setError(err.message || "CSVの保存に失敗しました。");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="master-card">
+      <h3>バックアップ</h3>
+      <p className="master-desc">
+        登録した機械・整備記録・マスタ設定を、このパソコンにファイルとして保存します。月に1回など、定期的に保存しておくと安心です。
+      </p>
+      <label className="backup-check">
+        <input type="checkbox" checked={includePhotos} onChange={(e) => setIncludePhotos(e.target.checked)} disabled={busy} />
+        <span>写真もファイルに含める（ファイルが大きくなり、時間がかかります）</span>
+      </label>
+      <div className="backup-actions">
+        <button type="button" className="btn btn-primary btn-sm" onClick={handleJson} disabled={busy}>
+          バックアップをダウンロード
+        </button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={handleCsv} disabled={busy}>
+          Excel用の一覧（CSV）
+        </button>
+      </div>
+      <p className="picker-hint">
+        「バックアップ」は全データの保存用（.json）、「Excel用の一覧」は表で見るための .csv です。
+      </p>
+      {message && <p className="success-text">{message}</p>}
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  );
+}
+
 /* ------------------------------ Master page --------------------------- */
 function MasterPage({
   onBack,
@@ -1004,6 +1194,7 @@ function MasterPage({
         />
         <MachineDeleteManager machines={machines} onDelete={onDeleteMachine} />
         <BrandingSettings profile={profile} onUpdate={onUpdateProfile} />
+        <BackupCard profile={profile} />
       </div>
     </div>
   );

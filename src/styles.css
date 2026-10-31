@@ -224,6 +224,10 @@ body { margin: 0; }
   font-size: 12.5px; color: var(--sumi); white-space: pre-wrap; overflow-wrap: anywhere;
 }
 .record-row-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+.backup-check { display: flex; align-items: flex-start; gap: 8px; font-size: 13px; color: var(--sumi); cursor: pointer; }
+.backup-check input { margin-top: 3px; }
+.backup-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.success-text { color: var(--indigo-800); font-size: 12.5px; font-weight: 600; margin: 0; }
 .btn-danger { color: var(--hanko); border-color: rgba(165,49,43,0.4); }
 .btn-danger:hover { background: rgba(165,49,43,0.1); }
 .memo-input { resize: vertical; min-height: 96px; line-height: 1.6; }
