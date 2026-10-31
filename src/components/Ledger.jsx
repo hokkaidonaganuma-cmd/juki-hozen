@@ -978,6 +978,7 @@ function MasterPage({
   onAddContent,
   onRemoveContent,
   onChangeContentUnit,
+  onRenameContent,
   machines,
   onDeleteMachine,
   profile,
@@ -994,7 +995,7 @@ function MasterPage({
         <MasterListEditor title="機種" items={kishu} onAdd={(v) => onAddOpt("kishu", v)} onRemove={onRemoveOpt} />
         <MasterListEditor title="メーカー" items={maker} onAdd={(v) => onAddOpt("maker", v)} onRemove={onRemoveOpt} />
         <MasterListEditor title="実施者" items={worker} onAdd={(v) => onAddOpt("worker", v)} onRemove={onRemoveOpt} />
-        <MasterContentEditor items={content} onAdd={onAddContent} onRemove={onRemoveContent} onChangeUnit={onChangeContentUnit} />
+        <MasterContentEditor items={content} onAdd={onAddContent} onRemove={onRemoveContent} onChangeUnit={onChangeContentUnit} onRename={onRenameContent} />
         <MasterListEditor
           title="検索ボタン（メーカー別）"
           items={quickMaker}
@@ -1095,6 +1096,13 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
     await api.removeMasterContent(id);
     setMasterContent((prev) => prev.filter((o) => o.id !== id));
   };
+  const renameContent = async (id, name) => {
+    await api.updateMasterContentName(id, name);
+    setMasterContent((prev) =>
+      prev.map((o) => (o.id === id ? { ...o, name } : o)).sort((a, b) => a.name.localeCompare(b.name, "ja"))
+    );
+  };
+
   const changeContentUnit = async (id, unit) => {
     await api.updateMasterContentUnit(id, unit);
     setMasterContent((prev) => prev.map((o) => (o.id === id ? { ...o, unit } : o)));
@@ -1297,6 +1305,7 @@ export default function Ledger({ profile, onProfileChange, onSignOut }) {
             onAddContent={addContentOption}
             onRemoveContent={removeContentOption}
             onChangeContentUnit={changeContentUnit}
+            onRenameContent={renameContent}
             machines={machines}
             onDeleteMachine={handleDeleteMachine}
             profile={profile}

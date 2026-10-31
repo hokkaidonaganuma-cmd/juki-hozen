@@ -189,6 +189,11 @@ export async function removeMasterContent(id) {
   if (error) throw error;
 }
 
+export async function updateMasterContentName(id, name) {
+  const { error } = await supabase.from("master_content").update({ name }).eq("id", id);
+  if (error) throw error;
+}
+
 export async function updateMasterContentUnit(id, unit) {
   const { error } = await supabase.from("master_content").update({ unit }).eq("id", id);
   if (error) throw error;

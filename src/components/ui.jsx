@@ -407,7 +407,65 @@ export function MasterListEditor({ title, items, onAdd, onRemove }) {
   );
 }
 
-export function MasterContentEditor({ items, onAdd, onRemove, onChangeUnit }) {
+// 整備内容の名称：クリックでその場編集（Enter・欄外クリックで保存、Escで取消）
+function EditableMasterName({ item, items, onRename }) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(item.name);
+  const [saving, setSaving] = useState(false);
+
+  const start = () => {
+    setValue(item.name);
+    setEditing(true);
+  };
+
+  const save = async () => {
+    if (saving) return;
+    const v = value.trim();
+    if (!v || v === item.name) return setEditing(false);
+    if (items.some((o) => o.id !== item.id && o.name === v)) {
+      window.alert(`「${v}」はすでに登録されています。`);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onRename(item.id, v);
+      setEditing(false);
+    } catch (err) {
+      window.alert(err.message || "名称の変更に失敗しました。");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (!editing) {
+    return (
+      <button type="button" className="master-row-name master-name-btn" onClick={start} title="クリックして名称を変更">
+        {item.name}
+        <span className="master-name-pencil" aria-hidden="true">✎</span>
+      </button>
+    );
+  }
+  return (
+    <input
+      className="input master-name-input"
+      value={value}
+      autoFocus
+      disabled={saving}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          save();
+        } else if (e.key === "Escape") {
+          setEditing(false);
+        }
+      }}
+    />
+  );
+}
+
+export function MasterContentEditor({ items, onAdd, onRemove, onChangeUnit, onRename }) {
   const [newName, setNewName] = useState("");
   const [newUnit, setNewUnit] = useState("none");
 
@@ -423,13 +481,13 @@ export function MasterContentEditor({ items, onAdd, onRemove, onChangeUnit }) {
     <div className="master-card">
       <h3>整備内容</h3>
       <p className="master-desc">
-        オイル関係・冷却水は「ℓ」、フィルター類の交換は「個数」を選ぶと、記録時に数量の入力欄が表示されます。
+        オイル関係・冷却水は「ℓ」、フィルター類の交換は「個数」を選ぶと、記録時に数量の入力欄が表示されます。名称をクリックすると変更できます。
       </p>
       <div className="master-list">
         {items.length === 0 && <p className="picker-hint">まだ項目がありません。</p>}
         {items.map((item) => (
           <div className="master-row" key={item.id}>
-            <span className="master-row-name">{item.name}</span>
+            <EditableMasterName item={item} items={items} onRename={onRename} />
             <select
               className="input unit-select-sm"
               value={item.unit}
