@@ -95,7 +95,7 @@ export function buildRequests(form, values, dateText) {
   const req = []; const mea = [];
   rows.forEach((r) => {
     const rv = values.rows?.[r.id];
-    if (rowResult(rv) !== 'ng') return;
+    if (isOmitted(form, values, r.id) || rowResult(rv) !== 'ng') return;
     const bad = (r.contents || []).filter((_, i) => rv.contents?.[i] === 'ng').map((c) => c.label).join('・');
     const part = `${r.place?.label || ''}${bad ? `（${bad}）` : ''}${rv.note ? ` ${rv.note}` : ''}`;
     if (rv.repair) mea.push({ no: r.no, part, date: dateText || '', content: `${REPAIR_MARKS.find((m) => m.v === rv.repair)?.label || rv.repair}${rv.fix ? `：${rv.fix}` : ''}` });
@@ -115,3 +115,9 @@ export function lockedRows(form, naRows = []) {
   });
   return rows;
 }
+
+// エンジンの省略可能項目（e〜k）：既定で省略し、用紙の注記の「＊」に○を付ける
+export const omitOn = (form, values) => !!form.omit?.rows?.length && values?.opts?.omitEK !== false;
+export const isOmitted = (form, values, rid) => omitOn(form, values) && form.omit.rows.includes(rid);
+// 判定用：省略行は「良」扱い（記入要領：＊を○で囲み、結果を良とする）
+export const rowResultF = (form, values, rid) => (isOmitted(form, values, rid) ? 'ok' : rowResult(values?.rows?.[rid]));

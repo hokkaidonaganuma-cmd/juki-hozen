@@ -1,4 +1,4 @@
-import { rowResult } from './formModel.js';
+import { rowResult, isOmitted, omitOn } from './formModel.js';
 
 const mm = (v) => `${v}mm`;
 const INK = '#0b2a8a'; // 画面上の記入色（印刷時は黒）
@@ -66,7 +66,11 @@ export default function OverlaySheet({ form, values, showBg = true, editing, sel
                 <div key={`${i}-${c.k}`} className="ov-el ov-text" style={{ left: mm(c.x), top: mm(pg.table.ys[i] - (pg.table.size || 8.5) * 0.2), width: mm(c.w), fontSize: `${pg.table.size || 8.5}pt`, textAlign: c.align || 'left' }}>
                   {row[c.k] || (editing ? `［${c.label}］` : '')}
                 </div>) : null))}
+            {omitOn(form, v) && form.omit.page === pi && form.omit.marks.map((m, i) => (
+              <div key={`om${i}`} className="ov-el ov-circle" style={{ left: mm(m.x - 1.7), top: mm(m.y - 1.7), width: mm(3.4), height: mm(3.4) }} />
+            ))}
             {(pg.rows || []).map((r) => {
+              if (!editing && isOmitted(form, v, r.id)) return null;
               const rv = v.rows?.[r.id] || {};
               const res = rowResult(rv);
               const els = [];

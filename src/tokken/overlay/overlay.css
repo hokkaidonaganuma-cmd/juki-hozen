@@ -81,3 +81,9 @@
 .ov-na-item.on { color: var(--tk-muted); text-decoration: line-through; background: var(--tk-chip); }
 .tk-app .ov-na-item input { width: auto; }
 .ov-chip:disabled { cursor: not-allowed; opacity: .7; }
+.ov-sec-row { display: flex; align-items: flex-end; gap: 10px; justify-content: space-between; border-bottom: 2px solid var(--tk-accent); margin: 18px 0 6px; padding-bottom: 4px; }
+.ov-sec-row:first-child { margin-top: 0; }
+.ov-sec-row .ov-sec { border: 0; margin: 0; padding: 0; }
+.ov-row.omit { opacity: .55; }
+.ov-na-btn { font: inherit; font-weight: 800; min-width: 38px; height: 30px; border-radius: 8px; border: 1px solid var(--tk-line); background: var(--tk-card); color: var(--tk-muted); cursor: pointer; margin-left: 6px; }
+.ov-na-btn.on { background: var(--tk-muted); color: var(--tk-card); border-color: var(--tk-muted); }

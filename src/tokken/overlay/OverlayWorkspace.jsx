@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import OverlaySheet from './OverlaySheet.jsx';
-import { HEADER_KEYS, BOX_KEYS, REPAIR_MARKS, rowResult, buildRequests } from './formModel.js';
+import { HEADER_KEYS, BOX_KEYS, REPAIR_MARKS, rowResult, buildRequests, isOmitted, omitOn } from './formModel.js';
 import './overlay.css';
 
 const CYCLE = { '': 'ok', ok: 'ng', ng: 'na', na: '' };
@@ -21,14 +21,27 @@ function Entry({ form, values, onChange, dateText }) {
   const lineFields = form.pages.flatMap((p) => [...(p.lines || []), ...(p.boxes || [])]);
   const table = form.pages.map((p) => p.table).find(Boolean);
   const tableRows = v.table?.[table?.key] || [];
-  const done = allRows.filter((r) => (r.contents || []).every((_, i) => v.rows?.[r.id]?.contents?.[i]) && rowResult(v.rows?.[r.id])).length;
-  const ngRows = allRows.filter((r) => rowResult(v.rows?.[r.id]) === 'ng');
+  const om = (r) => isOmitted(form, v, r.id);
+  const done = allRows.filter((r) => om(r) || ((r.contents || []).every((_, i) => v.rows?.[r.id]?.contents?.[i]) && rowResult(v.rows?.[r.id]))).length;
+  const ngRows = allRows.filter((r) => !om(r) && rowResult(v.rows?.[r.id]) === 'ng');
+
+  // 一括「―」：行（または区分）の検査内容をすべて対象外に。すでに全部「―」なら空欄に戻す
+  const naContents = (r) => Object.fromEntries((r.contents?.length ? r.contents : [0]).map((_, i) => [i, 'na']));
+  const allNa = (r) => rowResult(v.rows?.[r.id]) === 'na';
+  const setNa = (targets) => {
+    const list = targets.filter((r) => !om(r) && !v.rows?.[r.id]?.locked);
+    if (!list.length) return;
+    const clear = list.every(allNa);
+    const rows = { ...v.rows };
+    list.forEach((r) => { rows[r.id] = { ...rows[r.id], contents: clear ? {} : naContents(r), repair: '', methods: {} }; });
+    set({ rows });
+  };
 
   const fillAll = () => {
     const rows = { ...v.rows };
     allRows.forEach((r) => {
       const cur = rows[r.id] || {};
-      if (cur.locked) return;
+      if (cur.locked || om(r)) return;
       const contents = { ...cur.contents };
       (r.contents || []).forEach((_, i) => { if (!contents[i]) contents[i] = 'ok'; });
       if (!(r.contents || []).length) contents[0] = contents[0] || 'ok';
@@ -78,20 +91,38 @@ function Entry({ form, values, onChange, dateText }) {
         <button className="tk-btn" onClick={fillAll}>未記入をすべて「良」</button>
         <label className="ov-check"><input type="checkbox" checked={v.opts?.contentMarks !== false}
           onChange={(e) => set({ opts: { ...v.opts, contentMarks: e.target.checked } })} /> 検査内容の各項目にもレを印字</label>
+        {form.omit?.rows?.length > 0 && (
+          <label className="ov-check"><input type="checkbox" checked={omitOn(form, v)}
+            onChange={(e) => set({ opts: { ...v.opts, omitEK: e.target.checked } })} /> エンジンe〜{form.omit.rows.at(-1).slice(-1)}を省略（※に○）</label>
+        )}
       </div>
-      <p className="tk-muted">検査内容をタップ：レ（良）→ ○（不良）→ ―（対象外）→ 空欄。1つでも○があればその行は「不良」になります。</p>
+      <p className="tk-muted">検査内容をタップ：レ（良）→ ○（不良）→ ―（対象外）→ 空欄。1つでも○があればその行は「不良」になります。行の右の「―」で1行まとめて、区分名の横の「区分を―」で区分まとめて対象外にできます（もう一度押すと元に戻ります）。</p>
 
       <section className="tk-card">
         {allRows.map((r) => {
           const rv = v.rows?.[r.id] || {};
           const res = rowResult(rv);
           const conts = r.contents?.length ? r.contents : [{ label: '（検査）' }];
-          const head = r.section !== sec ? (sec = r.section, <h3 key={`s-${r.id}`} className="ov-sec">{r.section}</h3>) : null;
+          const head = r.section !== sec ? (sec = r.section, (
+            <div key={`s-${r.id}`} className="ov-sec-row">
+              <h3 className="ov-sec">{r.section}</h3>
+              <button className="tk-btn small" onClick={() => setNa(allRows.filter((x) => x.section === r.section))}>区分を―</button>
+            </div>)) : null;
+          if (om(r)) {
+            return [head, (
+              <div key={r.id} className="ov-row omit">
+                <div className="ov-row-head">
+                  <span className="ov-no">{r.no}</span><b>{r.place?.label}</b>
+                  <span className="ov-res na">省略（※に○・未記入）</span>
+                </div>
+              </div>)];
+          }
           return [head,
             <div key={r.id} className={`ov-row ${res}`}>
               <div className="ov-row-head">
                 <span className="ov-no">{r.no}</span><b>{r.place?.label}</b>
                 <span className={`ov-res ${res}`}>{rv.locked ? '装備なし（―）' : res === 'ok' ? '良' : res === 'ng' ? '不良' : res === 'na' ? '対象外' : ''}</span>
+                {!rv.locked && <button className={`ov-na-btn ${res === 'na' ? 'on' : ''}`} title="この行をすべて―（対象外）" onClick={() => setNa([r])}>―</button>}
               </div>
               <div className="ov-chips">
                 {conts.map((c, i) => {

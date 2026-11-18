@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, useCallback } from 'react';
 import { TEMPLATES, getTemplate, flattenRows, MARKS, NG_MARKS } from './templates.js';
 import PrintSheet from './PrintSheet.jsx';
 import OverlayWorkspace from './overlay/OverlayWorkspace.jsx';
-import { autoHeader, emptyValues, rowResult, lockedRows, formatPerf } from './overlay/formModel.js';
+import { autoHeader, emptyValues, rowResultF, lockedRows, formatPerf } from './overlay/formModel.js';
 import KENNI from './overlay/forms/kenni.json';
 import './tokken.css';
 
@@ -28,6 +28,18 @@ const SAMPLE_MACHINES = [
 ];
 
 export const kenniForm = (id) => KENNI.find((f) => f.id === id);
+// 位置合わせを保存した様式にも、後から直した項目（省略の○・測定値の位置）を反映する
+function withBase(over, base) {
+  if (!over || !base) return over || base;
+  return {
+    ...over, omit: base.omit,
+    pages: over.pages.map((p, i) => {
+      const bp = base.pages[i]; if (!bp) return p;
+      const meas = Object.fromEntries((bp.header || []).filter((h) => h.group === '測定値').map((h) => [h.key, h]));
+      return { ...p, header: (p.header || []).map((h) => meas[h.key] || h) };
+    }),
+  };
+}
 const cycleOf = (m) => kenniForm(m.form_id)?.cycleMonths || getTemplate(m.template_id)?.cycleMonths || 12;
 
 // 保全台帳の機種名 → 記録表の機種・建荷協用紙（キーワードで判定）
@@ -343,7 +355,7 @@ function OverlayRecord({ initial, settings, onSaveSettings, onSave, onCancel, on
   const [r, setR] = useState(initial);
   const [formEdit, setFormEdit] = useState(null);
   const base = kenniForm(r.form_id);
-  const form = formEdit || settings.formOverrides?.[r.form_id] || base;
+  const form = formEdit || withBase(settings.formOverrides?.[r.form_id], base);
   if (!base) return <div className="tk-card">様式 {r.form_id} が見つかりません。</div>;
   const values = r.overlay || emptyValues();
   const setValues = (ov) => setR((cur) => ({ ...cur, overlay: ov }));
@@ -356,7 +368,7 @@ function OverlayRecord({ initial, settings, onSaveSettings, onSave, onCancel, on
   const onHours = (e) => setR({ ...r, hour_meter: e.target.value, overlay: { ...values, header: { ...values.header, hours: e.target.value } } });
   const judge = () => {
     const rows = form.pages.flatMap((p) => p.rows || []);
-    const res = rows.map((x) => rowResult(values.rows?.[x.id]));
+    const res = rows.map((x) => rowResultF(form, values, x.id));
     if (res.some((x) => x === 'ng')) return '要整備';
     return res.every(Boolean) ? '合格' : '';
   };
@@ -425,7 +437,7 @@ export default function TokkenApp({ store, canPrint = true, ledgerMachines = nul
     const d = today();
     if (machine.form_id) {
       const next_due = addMonths(d, tpl.cycleMonths);
-      const form = settings.formOverrides?.[machine.form_id] || kenniForm(machine.form_id);
+      const form = withBase(settings.formOverrides?.[machine.form_id], kenniForm(machine.form_id));
       const header = autoHeader(machine, settings, { inspected_on: d, next_due, hour_meter: machine.hours ? String(machine.hours) : '' }, form);
       // 手で直した表題部（機械管理者など）は前回から引き継ぐ
       ['manager', 'user_addr', 'site', 'crane_issuer', 'crane_no'].forEach((k) => { if (prev?.overlay?.header?.[k]) header[k] = prev.overlay.header[k]; });
