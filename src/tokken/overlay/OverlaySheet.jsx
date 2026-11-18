@@ -94,9 +94,10 @@ export default function OverlaySheet({ form, values, showBg = true, editing, sel
               if (r.place && res === 'na') els.push(<Strike key="ps" b={r.place} />);
               // 検査方法
               r.methods?.forEach((c, i) => {
-                if (!rv.methods?.[i] || res === 'na') return;
-                if (res === 'ng') els.push(<Circle key={`mn${i}`} b={c} />);
-                else { const p = markPoint(c, form.markAt); els.push(<Mark key={`mo${i}`} {...p}>レ</Mark>); }
+                if (res === 'na' || !res) return;
+                if (res === 'ng') { if (rv.methods?.[i]) els.push(<Circle key={`mn${i}`} b={c} />); return; }
+                // 良：検査方法の各項目にもレ（検査内容と同じ位置どり）
+                if (v.opts?.contentMarks !== false || rv.methods?.[i]) els.push(<Mark key={`mo${i}`} x={c.x + 1.2} y={c.y + c.h / 2} size={2.8}>レ</Mark>);
               });
               // 検査結果・補修
               if (res === 'ok' && r.good) els.push(<Mark key="g" {...r.good}>レ</Mark>);

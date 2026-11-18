@@ -90,7 +90,7 @@ function Entry({ form, values, onChange, dateText }) {
         <span className="tk-progress">記入 {done}/{allRows.length}{ngRows.length > 0 && <b className="tk-ng">　不良 {ngRows.length}</b>}</span>
         <button className="tk-btn" onClick={fillAll}>未記入をすべて「良」</button>
         <label className="ov-check"><input type="checkbox" checked={v.opts?.contentMarks !== false}
-          onChange={(e) => set({ opts: { ...v.opts, contentMarks: e.target.checked } })} /> 検査内容の各項目にもレを印字</label>
+          onChange={(e) => set({ opts: { ...v.opts, contentMarks: e.target.checked } })} /> 検査内容・検査方法の各項目にもレを印字</label>
         {form.omit?.rows?.length > 0 && (
           <label className="ov-check"><input type="checkbox" checked={omitOn(form, v)}
             onChange={(e) => set({ opts: { ...v.opts, omitEK: e.target.checked } })} /> エンジンe〜{form.omit.rows.at(-1).slice(-1)}を省略（※に○）</label>
